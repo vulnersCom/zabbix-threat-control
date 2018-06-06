@@ -1,8 +1,10 @@
 # What the plugin does
 
-The plugin provides in the Zabbix the information about the vulnerabilities of the entire infrastructure: the scope of the impact, and a list of affected hosts and ways to fix them.
+The plugin provides in Zabbix the information about the vulnerabilities of the entire infrastructure: the scope of the impact, and a list of affected hosts and ways to fix them.
 
 # How the plugin works
+
+Using Zabbix API, receives the list of installed packages, the name and version of the OS from all the servers in the infrastructure (if the "Template Vulers" template is linked with them).
 
 Transmits this data to Vulners, and in return receives information on the vulnerabilities of each server.
 
