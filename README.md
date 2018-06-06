@@ -10,11 +10,11 @@ Transmits the data to Vulners, and receives information on the vulnerabilities o
 
 Processes the received information, aggregates it and display it in Zabbix in the following form:
 - CVSS score for each server.
-- Command to fix all detected vulnerabilities of the server (where vulnerabilities were detected).
+- Command to fix all detected vulnerabilities for each server.
 - List of security bulletins with the description of the vulnerabilities of the packages for the whole infrastructure.
 - List of the packages that are vulnerable for the whole infrastructure.
 
-Information about the security bulletins and packages  is presented in a following form:
+Information about the security bulletins and packages is presented in a following form:
 - CVSS score of package or bulletins.
 - Number of affected servers.
 - Index of the impact on the infrastructure
