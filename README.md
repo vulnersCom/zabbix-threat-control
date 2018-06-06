@@ -1,14 +1,16 @@
-# What the plugin does:
+# What the plugin does
 
-Using Zabbix API, receives the list of installed packages, the name and version of the OS from all the servers in the infrastructure (if the "Template Vulers" template is linked with them).
+The plugin provides in the Zabbix the information about the vulnerabilities of the entire infrastructure: the scope of the impact, and a list of affected hosts and ways to fix them.
+
+# How the plugin works
 
 Transmits this data to Vulners, and in return receives information on the vulnerabilities of each server.
 
 Processes the received information, aggregates it and display it in Zabbix in the following form:
-* CVSS score for each server.
-* Command to fix all detected vulnerabilities of the server (where vulnerabilities were detected).
-* List of security bulletins with the description of the vulnerabilities of the packages for the whole infrastructure.
-* List of the packages that are vulnerable for the whole infrastructure.
+- CVSS score for each server.
+- Command to fix all detected vulnerabilities of the server (where vulnerabilities were detected).
+- List of security bulletins with the description of the vulnerabilities of the packages for the whole infrastructure.
+- List of the packages that are vulnerable for the whole infrastructure.
 
 Information about the security bulletins and packages  is presented in a following form:
 - CVSS score of package or bulletins.
@@ -16,8 +18,6 @@ Information about the security bulletins and packages  is presented in a followi
 - Index of the impact on the infrastructure
 - A detailed list of affected hosts.
 - Hyperlink to the description of the bulletin.
-
-As a result, the plugin provides the information about the found vulnerabilities of the entire infrastructure: the scope of the impact, list of affected hosts and the ways to fix them.
 
 Sometimes it is quite difficult to update all packages on all servers to a version that fixes vulnerabilities. The offeredformat of the information representation helps to work selectively with both needed servers and particular packages.
 
@@ -38,13 +38,15 @@ Sometimes it is quite difficult to update all packages on all servers to a versi
 
 # Сonfiguration
 
-## Configuration file
+## Vulners
 
 Now you should get Vulners api-key. Log in to vulners.com, go to userinfo space https://vulners.com/userinfo. Then you should choose "apikey" section.
 Choose "scan" in scope menu and click "Generate new key". You will get an api-key, which looks like this:
 **RGB9YPJG7CFAXP35PMDVYFFJPGZ9ZIRO1VGO9K9269B0K86K6XQQQR32O6007NUK**
 
-You wll need to write this key into configuration (parameter ```vuln_api_key```). Configuration is located in file  /opt/monitoring/zbx-vulners/zbxvulners_settings.py
+## Configuration file
+
+You wll need to write Vulners api-key into configuration (parameter ```vuln_api_key```). Configuration is located in file  /opt/monitoring/zbx-vulners/zbxvulners_settings.py
 
 Enter the following to connect to Zabbix:
 -	The URL, username and password for connection with API. The User should have rights to create groups, hosts and templates in Zabbix.
