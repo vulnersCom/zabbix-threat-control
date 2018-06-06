@@ -6,7 +6,7 @@ The plugin provides in Zabbix the information about the vulnerabilities of the e
 
 Using Zabbix API, receives the list of installed packages, the name and version of the OS from all the servers in the infrastructure (if the "Template Vulers" template is linked with them).
 
-Transmits this data to Vulners, and in return receives information on the vulnerabilities of each server.
+Transmits the data to Vulners, and receives information on the vulnerabilities of each server.
 
 Processes the received information, aggregates it and display it in Zabbix in the following form:
 - CVSS score for each server.
