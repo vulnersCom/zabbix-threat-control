@@ -2,7 +2,7 @@
 This plugin turns your Zabbix into a full-fledged replacement for security scanners for Linux. 
 It helps to keep the risks under control!
 
-![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/demo.gif)
+![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/pkgs.gif)
 
 ## What the plugin does
 
