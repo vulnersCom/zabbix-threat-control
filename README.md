@@ -2,9 +2,13 @@
 This plugin turns your Zabbix into a full-fledged replacement for security scanners for Linux. 
 It helps to keep the risks under control!
 
+![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/demo.gif)
+
 ## What the plugin does
 
 The plugin provides in Zabbix the information about the vulnerabilities of the entire infrastructure: the scope of the impact, and a list of affected hosts and ways to fix them.
+
+Sometimes it is quite difficult to update all packages on all servers to a version that fixes vulnerabilities. The offered format of the information representation helps to work selectively with both needed servers and particular packages.
 
 ## How the plugin works
 
@@ -27,7 +31,16 @@ Information about the security bulletins and packages is presented in a followin
 
 Sometimes it is quite difficult to update all packages on all servers to a version that fixes vulnerabilities. The offeredformat of the information representation helps to work selectively with both needed servers and particular packages.
 
+## Requirements
+
+It will be ready soon...
+
 ## Installation
+### RHEL-based
+It will be ready soon...
+### Debian-based
+It will be ready soon...
+### From source
 
 **On zabbix-server host:**
 
@@ -82,8 +95,12 @@ This will create all the necessary objects in Zabbix using the API.
 
 Following this step. Using the Zabbix web interface, it is necessary to link the "Template Vulners" template to the hosts that you are doing a vulnerabilities scan on.
 
-## Execution
+## Running
 
 Every day at 6 am, Zabbix will automatically receive the name, version and installed packages of the operation system of all servers.
 Data processing is performed by script /opt/monitoring/zbx-vulners/zbxvulners.py.
 This script is launched by the zabbix-agent every day at 7 am via the item "Service item" on the host "Vulners - Statistics".
+
+## Usage
+It will be ready soon...
+
