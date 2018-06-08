@@ -1,4 +1,6 @@
 # Zabbix Threat Control
+This plugin turns your Zabbix into a full-fledged replacement for security scanners for Linux. 
+It helps to keep the risks under control!
 
 ## What the plugin does
 
