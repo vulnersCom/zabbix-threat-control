@@ -1,8 +1,10 @@
-# What the plugin does
+# Zabbix Threat Control
+
+## What the plugin does
 
 The plugin provides in Zabbix the information about the vulnerabilities of the entire infrastructure: the scope of the impact, and a list of affected hosts and ways to fix them.
 
-# How the plugin works
+## How the plugin works
 
 Using Zabbix API, receives the list of installed packages, the name and version of the OS from all the servers in the infrastructure (if the "Template Vulers" template is linked with them).
 
@@ -23,7 +25,7 @@ Information about the security bulletins and packages is presented in a followin
 
 Sometimes it is quite difficult to update all packages on all servers to a version that fixes vulnerabilities. The offeredformat of the information representation helps to work selectively with both needed servers and particular packages.
 
-# Installation
+## Installation
 
 **On zabbix-server host:**
 
@@ -38,15 +40,15 @@ Sometimes it is quite difficult to update all packages on all servers to a versi
 - chown -R zabbix:zabbix /opt/monitoring/os-report
 
 
-# Сonfiguration
+## Сonfiguration
 
-## Vulners
+### Vulners
 
 Now you should get Vulners api-key. Log in to vulners.com, go to userinfo space https://vulners.com/userinfo. Then you should choose "apikey" section.
 Choose "scan" in scope menu and click "Generate new key". You will get an api-key, which looks like this:
 **RGB9YPJG7CFAXP35PMDVYFFJPGZ9ZIRO1VGO9K9269B0K86K6XQQQR32O6007NUK**
 
-## Configuration file
+### Configuration file
 
 You wll need to write Vulners api-key into configuration (parameter ```vuln_api_key```). Configuration is located in file  /opt/monitoring/zbx-vulners/zbxvulners_settings.py
 
@@ -66,7 +68,7 @@ zbx_server = 'zabbixserver.yourdomain.com'
 zbx_port = '10051'
 ```
 
-## Zabbix
+### Zabbix
 
 You need to create these objects in Zabbix:
 - A template; through which data will be collected from the servers.
@@ -78,7 +80,7 @@ This will create all the necessary objects in Zabbix using the API.
 
 Following this step. Using the Zabbix web interface, it is necessary to link the "Template Vulners" template to the hosts that you are doing a vulnerabilities scan on.
 
-# Execution
+## Execution
 
 Every day at 6 am, Zabbix will automatically receive the name, version and installed packages of the operation system of all servers.
 Data processing is performed by script /opt/monitoring/zbx-vulners/zbxvulners.py.
