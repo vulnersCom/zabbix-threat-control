@@ -2,13 +2,36 @@
 This plugin turns your Zabbix into a full-fledged replacement for security scanners for Linux. 
 It helps to keep the risks under control!
 
-![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/pkgs.gif)
-
 ## What the plugin does
 
 The plugin provides in Zabbix the information about the vulnerabilities of the entire infrastructure: the scope of the impact, and a list of affected hosts and ways to fix them.
 
 Sometimes it is quite difficult to update all packages on all servers to a version that fixes vulnerabilities. The offered format of the information representation helps to work selectively with both needed servers and particular packages.
+
+The Information is displayed in zabbix in the following form:
+- CVSS score for each server.
+- Command to fix all detected vulnerabilities for each server.
+- List of security bulletins with the description of the vulnerabilities of the packages for the whole infrastructure.
+- List of the packages that are vulnerable for the whole infrastructure.
+
+The Information about the security bulletins and packages is presented in a following form:
+- CVSS score of package or bulletins.
+- Number of affected servers.
+- Index of the impact on the infrastructure
+- A detailed list of affected hosts.
+- Hyperlink to the description of the bulletin.
+
+**Vulnerabilities on servers:**
+
+![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/hosts.gif)
+
+**Vulnerable Packages:**
+
+![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/pkgs.gif)
+
+**Security bulletins**
+
+![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/bulls.gif)
 
 ## How the plugin works
 
@@ -16,20 +39,7 @@ Using Zabbix API, receives the list of installed packages, the name and version 
 
 Transmits the data to Vulners, and receives information on the vulnerabilities of each server.
 
-Processes the received information, aggregates it and display it in Zabbix in the following form:
-- CVSS score for each server.
-- Command to fix all detected vulnerabilities for each server.
-- List of security bulletins with the description of the vulnerabilities of the packages for the whole infrastructure.
-- List of the packages that are vulnerable for the whole infrastructure.
-
-Information about the security bulletins and packages is presented in a following form:
-- CVSS score of package or bulletins.
-- Number of affected servers.
-- Index of the impact on the infrastructure
-- A detailed list of affected hosts.
-- Hyperlink to the description of the bulletin.
-
-Sometimes it is quite difficult to update all packages on all servers to a version that fixes vulnerabilities. The offeredformat of the information representation helps to work selectively with both needed servers and particular packages.
+Processes the received information, aggregates it and display it in Zabbix.
 
 ## Requirements
 
