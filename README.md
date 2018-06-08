@@ -14,6 +14,10 @@ The Information is displayed in zabbix in the following form:
 - List of security bulletins with the description of the vulnerabilities of the packages for the whole infrastructure.
 - List of the packages that are vulnerable for the whole infrastructure.
 
+### Vulnerabilities on servers
+
+![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/hosts.gif)
+
 The Information about the security bulletins and packages is presented in a following form:
 - CVSS score of package or bulletins.
 - Number of affected servers.
@@ -21,15 +25,12 @@ The Information about the security bulletins and packages is presented in a foll
 - A detailed list of affected hosts.
 - Hyperlink to the description of the bulletin.
 
-**Vulnerabilities on servers:**
 
-![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/hosts.gif)
-
-**Vulnerable Packages:**
+### Vulnerable Package
 
 ![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/pkgs.gif)
 
-**Security bulletins**
+### Security bulletins
 
 ![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/bulls.gif)
 
