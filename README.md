@@ -1,13 +1,9 @@
 # Zabbix Threat Control
-This plugin turns your Zabbix into a full-fledged replacement for security scanners for Linux. 
-
-It helps to keep the risks under control!
+Оur plugin transforms your Zabbix monitoring system into an efficient harvester to manage the vulnerabilities, risk and security of your infrastructure.
 
 ## What the plugin does
 
 The plugin provides in Zabbix the information about the vulnerabilities of the entire infrastructure: the scope of the impact, and a list of affected hosts and ways to fix them.
-
-Sometimes it is quite difficult to update all packages on all servers to a version that fixes vulnerabilities. The offered format of the information representation helps to work selectively with both needed servers and particular packages.
 
 The Information is displayed in zabbix in the following form:
 
@@ -16,11 +12,9 @@ The Information is displayed in zabbix in the following form:
 - List of security bulletins with the description of the vulnerabilities of the packages for the whole infrastructure.
 - List of the packages that are vulnerable for the whole infrastructure.
 
-### Vulnerabilities on servers
 
 ![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/hosts.gif)
 
-### Vulnerable Package
 
 The Information about the security bulletins and packages is presented in a following form:
 
@@ -32,6 +26,7 @@ The Information about the security bulletins and packages is presented in a foll
 
 ![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/pkgs.gif)
 
+Sometimes it is quite difficult to update all packages on all servers to a version that fixes vulnerabilities. The offered format of the information representation helps to work selectively with both needed servers and particular packages.
 
 This approach allows you to fix the vulnerabilities of different strategies:
 
@@ -42,7 +37,7 @@ This can be done directly from Zabbix (using its standard functionality) by an a
 
 ## How the plugin works
 
-Using Zabbix API, receives the list of installed packages, the name and version of the OS from all the servers in the infrastructure (if the "Template Vulers" template is linked with them).
+Using Zabbix API, receives the list of installed packages, the name and version of the OS from all the servers in the infrastructure (if the "Vulners OS-Report" template is linked with them).
 
 Transmits the data to Vulners, and receives information on the vulnerabilities of each server.
 
@@ -50,7 +45,11 @@ Processes the received information, aggregates it and display it in Zabbix.
 
 ## Requirements
 
-It will be ready soon...
+The plugin requires:
+
+- python 3.6
+- python modules: pyzabbix, jpath, requests 
+- zabbix-sender utility for sending monitoring data to Zabbix server.
 
 ## Installation
 ### RHEL-based
