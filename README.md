@@ -1,5 +1,6 @@
 # Zabbix Threat Control
 This plugin turns your Zabbix into a full-fledged replacement for security scanners for Linux. 
+
 It helps to keep the risks under control!
 
 ## What the plugin does
@@ -9,6 +10,7 @@ The plugin provides in Zabbix the information about the vulnerabilities of the e
 Sometimes it is quite difficult to update all packages on all servers to a version that fixes vulnerabilities. The offered format of the information representation helps to work selectively with both needed servers and particular packages.
 
 The Information is displayed in zabbix in the following form:
+
 - CVSS score for each server.
 - Command to fix all detected vulnerabilities for each server.
 - List of security bulletins with the description of the vulnerabilities of the packages for the whole infrastructure.
@@ -18,21 +20,25 @@ The Information is displayed in zabbix in the following form:
 
 ![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/hosts.gif)
 
+### Vulnerable Package
+
 The Information about the security bulletins and packages is presented in a following form:
+
+- Index of the impact on the infrastructure
 - CVSS score of package or bulletins.
 - Number of affected servers.
-- Index of the impact on the infrastructure
 - A detailed list of affected hosts.
 - Hyperlink to the description of the bulletin.
 
-
-### Vulnerable Package
-
 ![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/pkgs.gif)
 
-### Security bulletins
 
-![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/bulls.gif)
+This approach allows you to fix the vulnerabilities of different strategies:
+
+- or all vulnerabilities on certain servers;
+- or a specific vulnerability in the entire infrastructure.
+
+This can be done directly from Zabbix (using its standard functionality) by an administrator command or in automatic mode.
 
 ## How the plugin works
 
