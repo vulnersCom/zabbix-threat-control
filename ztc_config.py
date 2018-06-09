@@ -10,7 +10,7 @@ zbx_port = '10051'
 log_file = '/var/log/zabbix-threat-control.log'
 zsender_lld_file =  '/opt/monitoring/zabbix-threat-control/zbx_lld'
 zsender_data_file = '/opt/monitoring/zabbix-threat-control/zbx_data'
-h_matrix_dumpfile = '/opt/monitoring/zabbix-threat-control/h_matrix_dumpfile'
+h_matrix_dumpfile = '/opt/monitoring/zabbix-threat-control/h_matrix_dump'
 
 
 group_name = 'Vulners'
