@@ -109,8 +109,8 @@ else:
     # если дампа матрицы на диске нет - формируем (исходные данные из zabbix и затем обогащаем их через vulners)
     total_hosts = 0
     try:
-        h_matrix = zapi.item.get(search={"key_": item_key}, monitored=True, limit=10, output=['hostid'])
-        # h_matrix = zapi.item.get(search={"key_": item_key}, monitored=True, output=['hostid'])
+        # h_matrix = zapi.item.get(search={"key_": item_key}, monitored=True, limit=10, output=['hostid'])
+        h_matrix = zapi.item.get(search={"key_": item_key}, monitored=True, output=['hostid'])
         full_hosts = len(h_matrix)
         logw(f'Received from Zabbix {full_hosts} hosts for processing.')
     except Exception as e:
