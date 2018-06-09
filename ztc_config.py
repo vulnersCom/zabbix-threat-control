@@ -33,7 +33,7 @@ stats_macros_value = '/opt/monitoring/zabbix-threat-control/ztc.py'
 
 dash_name = 'Vulners'
 
-tmpl_host = 'tmpl.vulners'
+tmpl_host = 'tmpl.vulners.os-report'
 tmpl_name = 'Template Vulners OS-Report'
 tmpl_macros_name = '{$REPORT_SCRIPT_PATH}'
 tmpl_macros_value = '/opt/monitoring/os-report/report.py'

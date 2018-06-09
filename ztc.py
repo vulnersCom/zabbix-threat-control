@@ -262,13 +262,6 @@ for h in h_matrix:
                                 "{#H.FIX}": h['h_fix'],
                                 "{#H.SCORE}": h['h_score']})
 
-        debug_lst = ({"{#H.VNAME}": h['v_name'],
-                                "{#H.HOST}": h['host_name'],
-                                "{#H.ID}": h['hostid'],
-                                "{#H.FIX}": h['h_fix'],
-                                "{#H.SCORE}": h['h_score']})
-        logw(f'====HST==== {debug_lst}')
-
         f.write(f'\"{zbx_h_hosts}\" vulners.hosts[{h["hostid"]}] {h["h_score"]}\n')
     except Exception as e:
         logw(f'[{current_host} of {total_hosts}] {h["v_name"]}. Exception: {e}')
@@ -346,14 +339,6 @@ for p in pkg_matrix:
                           "{#PKG.IMPACT}": int(affected_h_cnt * pkg_score),
                           "{#PKG.HOSTS}": '\n'.join(p['host_list'])})
 
-    debug_lst = ({"{#PKG.ID}": pkg,
-     "{#PKG.URL}": bull,
-     "{#PKG.SCORE}": pkg_score,
-     "{#PKG.AFFECTED}": affected_h_cnt,
-     "{#PKG.IMPACT}": int(affected_h_cnt * pkg_score),
-     "{#PKG.HOSTS}": '\n'.join(p['host_list'])})
-    logw(f'====PKG==== {debug_lst}')
-
 # преобразовываем в однострочный json без пробелов и пишем в файл
 discovery_pkg_json = (json.dumps({"data": discovery_pkg})).replace(': ', ':').replace(', ', ',')
 
@@ -423,13 +408,6 @@ for b in b_matrix:
                            "{#BULLETIN.AFFECTED}": affected_h_cnt,
                            "{#BULLETIN.IMPACT}": bulletin_impact,
                            "{#BULLETIN.HOSTS}": '\n'.join(b['hosts'])})
-
-    debug_lst = ({"{#BULLETIN.ID}": bullentin_name,
-                           "{#BULLETIN.SCORE}": bulletin_score,
-                           "{#BULLETIN.AFFECTED}": affected_h_cnt,
-                           "{#BULLETIN.IMPACT}": bulletin_impact,
-                           "{#BULLETIN.HOSTS}": '\n'.join(b['hosts'])})
-    logw(f'====BUL==== {debug_lst}')
 
 # преобразовываем в однострочный json без пробелов и пишем в файл
 discovery_json = (json.dumps({"data": discovery_data})).replace(': ', ':').replace(', ', ',')
@@ -519,6 +497,7 @@ else:
     logw(push_lld_cmd)
 
     # чтобы LLD-метрики в Zabbix успели создаться нужен небольшой таймаут
+    logw('sleep for 5 min')
     sleep(300)
 
     shell(push_cmd)
