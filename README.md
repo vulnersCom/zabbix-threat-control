@@ -45,7 +45,11 @@ Processes the received information, aggregates it and display it in Zabbix.
 
 ## Requirements
 
-It will be ready soon...
+The plugin requires:
+
+- python 3.6
+- python modules: pyzabbix, jpath, requests 
+- zabbix-sender utility for sending monitoring data to Zabbix server.
 
 ## Installation
 ### RHEL-based
