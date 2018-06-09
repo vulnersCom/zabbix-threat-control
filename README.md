@@ -52,10 +52,18 @@ The plugin requires:
 - zabbix-sender utility for sending monitoring data to Zabbix server.
 
 ## Installation
-### RHEL-based
-It will be ready soon...
-### Debian-based
-It will be ready soon...
+
+### RHEL
+
+    rpm -Uhv https://repo.vulners.com/redhat/vulners-repo-2018.06.09.el.noarch.rpm
+    yum install zabbix-threat-control
+
+### Debian
+
+    wget https://repo.vulners.com/debian/vulners-repo_2018.06.09+stretch_all.deb
+    dpkg -i vulners-repo_2018.06.09+stretch_all.deb
+    apt-get update && apt-get install zabbix-threat-control
+
 ### From source
 
 **On zabbix-server host:**
