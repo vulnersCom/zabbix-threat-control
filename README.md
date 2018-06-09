@@ -1,5 +1,6 @@
 # Zabbix Threat Control
-Оur plugin transforms your Zabbix monitoring system into an efficient harvester to manage the vulnerabilities, risk and security of your infrastructure.
+
+Оur plugin transforms your Zabbix monitoring system into vulnerabilities, risk and security managment system for your infrastructure.
 
   * [What the plugin does](#what-the-plugin-does)
   * [How the plugin works](#how-the-plugin-works)
@@ -11,26 +12,26 @@
   
 ## What the plugin does
 
-The plugin provides in Zabbix the information about the vulnerabilities of the entire infrastructure: the scope of the impact, and a list of affected hosts and ways to fix them.
+It provides Zabbix with information about vulnerabilities existing in your entire infrastructure and suggests easy applicable remediation plans.
 
-The Information is displayed in zabbix in the following form:
+Information is displayed in Zabbix in the following format:
 
-- CVSS score for each server.
-- Command to fix all detected vulnerabilities for each server.
-- List of security bulletins with the description of the vulnerabilities of the packages for the whole infrastructure.
-- List of the packages that are vulnerable for the whole infrastructure.
+- Maximum CVSS score for each server.
+- Command for fixing all detected vulnerabilities for each server.
+- List of security bulletins with descriptions for vulnerable packages actual for your infrastructure.
+- List of all vulnerable packages in your infrastructure.
 
 
 ![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/hosts.gif)
 
 
-The Information about the security bulletins and packages is presented in a following form:
+Security bulletins and packages information contains:
 
-- Index of the impact on the infrastructure
-- CVSS score of package or bulletins.
+- Impact index for the infrastructure
+- CVSS score of a package or a bulletin.
 - Number of affected servers.
 - A detailed list of affected hosts.
-- Hyperlink to the description of the bulletin.
+- Hyperlink to the description of a bulletin.
 
 ![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/pkgs.gif)
 
