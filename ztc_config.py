@@ -7,10 +7,10 @@ zbx_url = 'https://zabbixfront.yourdomain.com'
 zbx_server = 'zabbixserver.yourdomain.com'
 zbx_port = '10051'
 
-log_file = '/var/log/zbxvulners.log'
-zsender_data_file = '/tmp/zbxvulners_data'
-zsender_lld_file = '/tmp/zbxvulners_lld'
-h_matrix_dumpfile = '/opt/monitoring/zbx-vulners/h_matrix_dumpfile'
+log_file = '/var/log/zabbix-threat-control.log'
+zsender_data_file = '/opt/monitoring/zabbix-threat-control/ztc_data'
+zsender_lld_file =  '/opt/monitoring/zabbix-threat-control/ztc_lld'
+h_matrix_dumpfile = '/opt/monitoring/zabbix-threat-control/h_matrix_dumpfile'
 
 
 group_name = 'Vulners'
@@ -29,12 +29,12 @@ zbx_h_stats = 'vulners.statistics'
 zbx_h_stats_vname ='Vulners - Statistics'
 
 stats_macros_name = '{$WORK_SCRIPT_CMD}'
-stats_macros_value = '/opt/monitoring/zbx-vulners/zbxvulners.py'
+stats_macros_value = '/opt/monitoring/zabbix-threat-control/ztc.py'
 
 dash_name = 'Vulners'
 
 tmpl_host = 'tmpl.vulners'
-tmpl_name = 'Template Vulners'
+tmpl_name = 'Template Vulners OS-Report'
 tmpl_macros_name = '{$REPORT_SCRIPT_PATH}'
 tmpl_macros_value = '/opt/monitoring/os-report/report.py'
 tmpl_appl_name = 'OS Report'
