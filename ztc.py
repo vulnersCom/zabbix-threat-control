@@ -40,7 +40,8 @@ args = parser.parse_args()
 def logw(text, type='normal'):
     f = open(log_file, 'a')
     if type == 'normal':
-        text = '\n' + datetime.now().strftime('%Y-%m-%d %H:%M:%S ') + text
+        now = datetime.now()
+        text = f'\n{now:%Y-%m-%d %H:%M:%S} {text}'
     f.write(text)
     f.close()
 

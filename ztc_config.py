@@ -8,8 +8,8 @@ zbx_server = 'zabbixserver.yourdomain.com'
 zbx_port = '10051'
 
 log_file = '/var/log/zabbix-threat-control.log'
-zsender_data_file = '/opt/monitoring/zabbix-threat-control/ztc_data'
-zsender_lld_file =  '/opt/monitoring/zabbix-threat-control/ztc_lld'
+zsender_lld_file =  '/opt/monitoring/zabbix-threat-control/zbx_lld'
+zsender_data_file = '/opt/monitoring/zabbix-threat-control/zbx_data'
 h_matrix_dumpfile = '/opt/monitoring/zabbix-threat-control/h_matrix_dumpfile'
 
 
