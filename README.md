@@ -55,7 +55,7 @@ The plugin requires:
 
 ### RHEL
 
-rpm -Uhv https://repo.vulners.com/redhat/vulners-repo-2018.06.09.el.noarch.rpm
+    rpm -Uhv https://repo.vulners.com/redhat/vulners-repo-2018.06.09.el.noarch.rpm
 
 **On zabbix-server host:**
 
@@ -133,9 +133,7 @@ vuln_api_key = 'RGB9YPJG7CFAXP35PMDVYFFJPGZ9ZIRO1VGO9K9269B0K86K6XQQQR32O6007NUK
 
 ### Zabbix
 
-1. To create all the necessary objects in Zabbix, run the `/opt/monitoring/zabbix-threat-control/ztc_create.py` script.
-
-This will create these objects in Zabbix using the API:
+1. To create all the necessary objects in Zabbix, run the `/opt/monitoring/zabbix-threat-control/ztc_create.py` script. This will create these objects in Zabbix using the API:
 - A template; through which data will be collected from the servers.
 - Zabbix hosts; for obtaining data on vulnerabilities.
 - Dashboard; for their display.
