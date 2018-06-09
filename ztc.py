@@ -417,42 +417,12 @@ f_lld.write(f'\"{zbx_h_bulls}\" vulners.bulletins_lld {discovery_json}\n')
 
 logw(f'Сreating an CVSS Score-based host-lists.')
 score_list = list()
-host_count_0 = 0
-host_count_1 = 0
-host_count_2 = 0
-host_count_3 = 0
-host_count_4 = 0
-host_count_5 = 0
-host_count_6 = 0
-host_count_7 = 0
-host_count_8 = 0
-host_count_9 = 0
-host_count_10 = 0
+
+host_count_table = dict((score_value, 0) for score_value in range(0, 11))
 for h in h_matrix:
     score_list.append(h['h_score'])
     score = float(h['h_score'])
-    if 0 <= score < 1:
-        host_count_0 += 1
-    elif 1 <= score < 2:
-        host_count_1 += 1
-    elif 2 <= score < 3:
-        host_count_2 += 1
-    elif 3 <= score < 4:
-        host_count_3 += 1
-    elif 4 <= score < 5:
-        host_count_4 += 1
-    elif 5 <= score < 6:
-        host_count_5 += 1
-    elif 6 <= score < 7:
-        host_count_6 += 1
-    elif 7 <= score < 8:
-        host_count_7 += 1
-    elif 8 <= score < 9:
-        host_count_8 += 1
-    elif 9 <= score < 10:
-        host_count_9 += 1
-    elif score == 10:
-        host_count_10 += 1
+    host_count_table[int(score)] += 1
 
 # если вдруг список с баллами хостов пуст, пишем в него '0'
 if len(score_list) == 0:
@@ -465,17 +435,8 @@ agg_score_mean = mean(map(float, score_list))
 agg_score_max = max(map(float, score_list))
 agg_score_min = min(map(float, score_list))
 
-f.write(f'\"{zbx_h_stats}\" vulners.hostsCountScore0 {host_count_0}\n')
-f.write(f'\"{zbx_h_stats}\" vulners.hostsCountScore1 {host_count_1}\n')
-f.write(f'\"{zbx_h_stats}\" vulners.hostsCountScore2 {host_count_2}\n')
-f.write(f'\"{zbx_h_stats}\" vulners.hostsCountScore3 {host_count_3}\n')
-f.write(f'\"{zbx_h_stats}\" vulners.hostsCountScore4 {host_count_4}\n')
-f.write(f'\"{zbx_h_stats}\" vulners.hostsCountScore5 {host_count_5}\n')
-f.write(f'\"{zbx_h_stats}\" vulners.hostsCountScore6 {host_count_6}\n')
-f.write(f'\"{zbx_h_stats}\" vulners.hostsCountScore7 {host_count_7}\n')
-f.write(f'\"{zbx_h_stats}\" vulners.hostsCountScore8 {host_count_8}\n')
-f.write(f'\"{zbx_h_stats}\" vulners.hostsCountScore9 {host_count_9}\n')
-f.write(f'\"{zbx_h_stats}\" vulners.hostsCountScore10 {host_count_10}\n')
+for intScore in host_count_table:
+    f.write(f'\"{zbx_h_stats}\" vulners.hostsCountScore{intScore} {host_count_table.get(intScore)}\n')
 f.write(f'\"{zbx_h_stats}\" vulners.hostsCount {total_hosts}\n')
 f.write(f'\"{zbx_h_stats}\" vulners.scoreMedian {agg_score_median}\n')
 f.write(f'\"{zbx_h_stats}\" vulners.scoreMean {agg_score_mean}\n')
