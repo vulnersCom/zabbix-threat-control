@@ -1,6 +1,14 @@
 # Zabbix Threat Control
 Оur plugin transforms your Zabbix monitoring system into an efficient harvester to manage the vulnerabilities, risk and security of your infrastructure.
 
+  * [What the plugin does](#what-the-plugin-does)
+  * [How the plugin works](#how-the-plugin-works)
+  * [Requirements](#requirements)
+  * [Installation](#installation)
+  * [Сonfiguration](#configuration)
+  * [Running](#running)
+  * [Usage](#usage)
+  
 ## What the plugin does
 
 The plugin provides in Zabbix the information about the vulnerabilities of the entire infrastructure: the scope of the impact, and a list of affected hosts and ways to fix them.
@@ -99,7 +107,7 @@ The plugin requires:
     cp -R zabbix-threat-control/os-report /opt/monitoring/
     chown -R zabbix:zabbix /opt/monitoring/os-report
 
-## Сonfiguration
+## Configuration
 
 ### Configuration file
 
