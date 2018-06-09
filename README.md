@@ -61,19 +61,19 @@ It will be ready soon...
 **On zabbix-server host:**
 
     git clone https://github.com/vulnersCom/zabbix-threat-control.git
-    cd zabbix-threat-control
     mkdir -p /opt/monitoring/zabbix-threat-control
-    cp ztc.py ztc_config.py ztc_create.py /opt/monitoring/zabbix-threat-control/
-    touch /var/log/zabbix-threat-control.log
+    cp zabbix-threat-control/ztc* /opt/monitoring/zabbix-threat-control/
     chown -R zabbix:zabbix /opt/monitoring/zabbix-threat-control
+    chmod 640 /opt/monitoring/zabbix-threat-control/ztc_config.py
+    touch /var/log/zabbix-threat-control.log
     chown zabbix:zabbix /var/log/zabbix-threat-control.log
+    chmod 664 /var/log/zabbix-threat-control.log
 
 **For all servers that require a vulnerability scan:**
 
     git clone https://github.com/vulnersCom/zabbix-threat-control.git
-    cd zabbix-threat-control
     mkdir -p /opt/monitoring/
-    cp -R os-report /opt/monitoring/
+    cp -R zabbix-threat-control/os-report /opt/monitoring/
     chown -R zabbix:zabbix /opt/monitoring/os-report
 
 ## Сonfiguration
