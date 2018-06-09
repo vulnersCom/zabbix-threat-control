@@ -55,14 +55,29 @@ The plugin requires:
 
 ### RHEL
 
-    rpm -Uhv https://repo.vulners.com/redhat/vulners-repo-2018.06.09.el.noarch.rpm
-    yum install zabbix-threat-control
+rpm -Uhv https://repo.vulners.com/redhat/vulners-repo-2018.06.09.el.noarch.rpm
+
+**On zabbix-server host:**
+
+    yum install zabbix-threat-control-main
+
+**For all servers that require a vulnerability scan:**
+
+    yum install zabbix-threat-control-host
+
 
 ### Debian
 
     wget https://repo.vulners.com/debian/vulners-repo_2018.06.09+stretch_all.deb
     dpkg -i vulners-repo_2018.06.09+stretch_all.deb
-    apt-get update && apt-get install zabbix-threat-control
+
+**On zabbix-server host:**
+
+    apt-get update && apt-get install zabbix-threat-control-main
+
+**For all servers that require a vulnerability scan:**
+
+    apt-get update && apt-get install zabbix-threat-control-host
 
 ### From source
 
@@ -86,24 +101,17 @@ The plugin requires:
 
 ## Сonfiguration
 
-### Vulners
-
-Now you should get Vulners api-key. Log in to vulners.com, go to userinfo space https://vulners.com/userinfo. Then you should choose "apikey" section.
-Choose "scan" in scope menu and click "Generate new key". You will get an api-key, which looks like this:
-**RGB9YPJG7CFAXP35PMDVYFFJPGZ9ZIRO1VGO9K9269B0K86K6XQQQR32O6007NUK**
-
 ### Configuration file
 
-You wll need to write Vulners api-key into configuration (parameter ```vuln_api_key```). Configuration is located in file  /opt/monitoring/zbx-vulners/zbxvulners_settings.py
+Configuration is located in file `/opt/monitoring/zabbix-threat-control/ztc_config.py`
 
-Enter the following to connect to Zabbix:
+Enter the following in configuration file to connect to Zabbix:
 -	The URL, username and password for connection with API. The User should have rights to create groups, hosts and templates in Zabbix.
 -	Address and port of the Zabbix-server for pushing data using the zabbix-sender.
 
 Here is example of config file:
-```
-vuln_api_key = 'RGB9YPJG7CFAXP35PMDVYFFJPGZ9ZIRO1VGO9K9269B0K86K6XQQQR32O6007NUK'
 
+```
 zbx_pass = 'yourpassword'
 zbx_user = 'yourlogin'
 zbx_url = 'https://zabbixfront.yourdomain.com'
@@ -111,18 +119,28 @@ zbx_url = 'https://zabbixfront.yourdomain.com'
 zbx_server = 'zabbixserver.yourdomain.com'
 zbx_port = '10051'
 ```
+### Vulners
+
+Now you should get Vulners api-key. Log in to vulners.com, go to userinfo space https://vulners.com/userinfo. Then you should choose "apikey" section.
+Choose "scan" in scope menu and click "Generate new key". You will get an api-key, which looks like this:
+**RGB9YPJG7CFAXP35PMDVYFFJPGZ9ZIRO1VGO9K9269B0K86K6XQQQR32O6007NUK**
+
+You wll need to write Vulners api-key into configuration (parameter ```vuln_api_key```).
+
+```
+vuln_api_key = 'RGB9YPJG7CFAXP35PMDVYFFJPGZ9ZIRO1VGO9K9269B0K86K6XQQQR32O6007NUK'
+```
 
 ### Zabbix
 
-You need to create these objects in Zabbix:
+1. To create all the necessary objects in Zabbix, run the `/opt/monitoring/zabbix-threat-control/ztc_create.py` script.
+
+This will create these objects in Zabbix using the API:
 - A template; through which data will be collected from the servers.
 - Zabbix hosts; for obtaining data on vulnerabilities.
 - Dashboard; for their display.
 
-To do this, run the ```/opt/monitoring/zbx-vulners/create_zbxobj.py``` script.
-This will create all the necessary objects in Zabbix using the API.
-
-Following this step. Using the Zabbix web interface, it is necessary to link the "Template Vulners" template to the hosts that you are doing a vulnerabilities scan on.
+2. Following this step. Using the Zabbix web interface, it is necessary to link the "Template Vulners" template to the hosts that you are doing a vulnerabilities scan on.
 
 ## Running
 
