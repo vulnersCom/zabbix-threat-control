@@ -67,7 +67,7 @@ It will be ready soon...
     chmod 640 /opt/monitoring/zabbix-threat-control/ztc_config.py
     touch /var/log/zabbix-threat-control.log
     chown zabbix:zabbix /var/log/zabbix-threat-control.log
-    chmod 660 /var/log/zabbix-threat-control.log
+    chmod 664 /var/log/zabbix-threat-control.log
 
 **For all servers that require a vulnerability scan:**
 
