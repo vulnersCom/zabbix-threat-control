@@ -3,7 +3,7 @@
 from datetime import datetime
 from pyzabbix import ZabbixAPI, ZabbixAPIException
 
-from zbxvulners_settings import *
+from ztc_config import *
 
 
 timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')

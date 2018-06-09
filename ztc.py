@@ -14,7 +14,7 @@ from time import sleep
 from statistics import median, mean
 from pyzabbix import ZabbixAPI
 
-from zbxvulners_settings import *
+from ztc_config import *
 
 
 vulners_url = 'https://vulners.com/api/v3/audit/audit/'
