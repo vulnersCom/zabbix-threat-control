@@ -77,14 +77,12 @@ def os_data_valid(os, version, packages, host_name):
 def dump_create(filename, obj):
     with open(filename, 'wb') as file:
         pickle.dump(obj, file)
-    file.close()
     return True
 
 
 def dump_load(filename):
     with open(filename, 'rb') as file:
         obj = pickle.load(file)
-    file.close()
     return obj
 
 
@@ -276,7 +274,6 @@ f_lld.write(f'\"{zbx_h_hosts}\" vulners.hosts_lld {discovery_hosts_json}\n')
 ###########################
 # ФОРМИРУЕМ МАТРИЦУ ПАКЕТОВ
 ###########################
-# todo описать формат матрицы пакетов
 logw(f'Creating an package-matrix.')
 
 # цель - найти все хосты, на которых зааффектило этот пакет, для этого
@@ -348,7 +345,6 @@ f_lld.write(f'\"{zbx_h_pkgs}\" vulners.packages_lld {discovery_pkg_json}\n')
 ##############################
 # ФОРМИРУЕМ МАТРИЦУ БЮЛЛЕТЕНЕЙ
 ##############################
-# todo описать формат матрицы бюллетеней
 logw(f'Creating an bulletin-matrix.')
 
 bulletins_d = dict()
