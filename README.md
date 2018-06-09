@@ -60,16 +60,21 @@ It will be ready soon...
 
 **On zabbix-server host:**
 
-- Move the ```zbx-vulners``` directory to /opt/monitoring/
-- touch /var/log/zbxvulners.log
-- chown -R zabbix:zabbix /opt/monitoring/zbx-vulners
-- chown zabbix:zabbix /var/log/zbxvulners.log
+    git clone https://github.com/vulnersCom/zabbix-threat-control.git
+    cd zabbix-threat-control
+    mkdir -p /opt/monitoring/zabbix-threat-control
+    cp ztc.py ztc_config.py ztc_create.py /opt/monitoring/zabbix-threat-control/
+    touch /var/log/zabbix-threat-control.log
+    chown -R zabbix:zabbix /opt/monitoring/zabbix-threat-control
+    chown zabbix:zabbix /var/log/zabbix-threat-control.log
 
 **For all servers that require a vulnerability scan:**
 
-- Move the ```os-report``` directory to /opt/monitoring/
-- chown -R zabbix:zabbix /opt/monitoring/os-report
-
+    git clone https://github.com/vulnersCom/zabbix-threat-control.git
+    cd zabbix-threat-control
+    mkdir -p /opt/monitoring/
+    cp -R os-report /opt/monitoring/
+    chown -R zabbix:zabbix /opt/monitoring/os-report
 
 ## Сonfiguration
 
