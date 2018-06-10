@@ -150,7 +150,7 @@ vuln_api_key = 'RGB9YPJG7CFAXP35PMDVYFFJPGZ9ZIRO1VGO9K9269B0K86K6XQQQR32O6007NUK
    * Dashboard; for their display.
 2. Following this step. Using the Zabbix web interface, it is necessary to link the "Template Vulners" template to the hosts that you are doing a vulnerabilities scan on.
 
-## Running
+## Execution
 
 Every day at 6 am, Zabbix will automatically receive the name, version and installed packages of the operation system of all servers.
 Data processing is performed by script /opt/monitoring/zbx-vulners/zbxvulners.py.
