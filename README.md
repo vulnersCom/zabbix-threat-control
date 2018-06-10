@@ -50,7 +50,9 @@ Using Zabbix API, receives the list of installed packages, the name and version 
 
 Transmits the data to Vulners, and receives information on the vulnerabilities of each server.
 
-Processes the received information, aggregates it and display it in Zabbix.
+Processes the received information, aggregates and send to Zabbix via zabbix-sender.
+
+Then Zabbix display it.
 
 ## Requirements
 
