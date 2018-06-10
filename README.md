@@ -64,11 +64,11 @@ The plugin requires:
 
 ### RHEL
 
-    rpm -Uhv https://repo.vulners.com/redhat/vulners-repo-2018.06.09.el.noarch.rpm
+    rpm -Uhv https://repo.vulners.com/redhat/vulners-repo.rpm
 
 **On zabbix-server host:**
 
-    yum install zabbix-threat-control-main
+    yum install zabbix-threat-control-main zabbix-threat-control-host
 
 **For all servers that require a vulnerability scan:**
 
@@ -77,12 +77,12 @@ The plugin requires:
 
 ### Debian
 
-    wget https://repo.vulners.com/debian/vulners-repo_2018.06.09+stretch_all.deb
-    dpkg -i vulners-repo_2018.06.09+stretch_all.deb
+    wget https://repo.vulners.com/debian/vulners-repo.deb
+    dpkg -i vulners-repo.deb
 
 **On zabbix-server host:**
 
-    apt-get update && apt-get install zabbix-threat-control-main
+    apt-get update && apt-get install zabbix-threat-control-main zabbix-threat-control-host
 
 **For all servers that require a vulnerability scan:**
 
