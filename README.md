@@ -152,7 +152,6 @@ vuln_api_key = 'RGB9YPJG7CFAXP35PMDVYFFJPGZ9ZIRO1VGO9K9269B0K86K6XQQQR32O6007NUK
 
 
 Through the Zabbix web interface link "Template Vulners" template with hosts that need a vulnerability scan.
-## Execution
 
 ## Execution
 
