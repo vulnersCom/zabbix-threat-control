@@ -20,6 +20,7 @@ import requests
 import ztc_config as c
 
 
+ztc_version = 0.1
 vulners_url = 'https://vulners.com/api/v3/audit/audit/'
 jpath_mask = 'data.packages.*.*.*'
 item_key = 'system.run[{$REPORT_SCRIPT_PATH} package]'
@@ -100,7 +101,7 @@ if len(c.vuln_api_key) != 64:
 
 # создаем сессию в заббикс
 try:
-    zapi = ZabbixAPI(c.zbx_url, timeout=5)
+    zapi = ZabbixAPI(c.zbx_url, timeout=10)
     zapi.login(c.zbx_user, c.zbx_pass)
     logw(f'Connected to Zabbix API Version {zapi.api_version()}')
 except Exception as e:
@@ -169,7 +170,8 @@ else:
             os_data = '{"package":' + json.dumps(h['software_full']) + ',"os":"' + h['os'] + \
                       '","version":"' + h['version'] + '","apiKey":"' + c.vuln_api_key + '"}'
             # идем в вулнерс и получем там уязвимости для списка пакетов и ОС
-            vuln_response = requests.post(vulners_url, headers={'Content-Type': 'application/json', }, data=os_data)
+            vuln_response = requests.post(vulners_url, headers={'User-Agent': f'vulners-ztc-{ztc_version}',
+                                                                'Content-Type': 'application/json', }, data=os_data)
             h.update({'vuln_data': vuln_response.json()})
             # чтобы вулнерс не упал под нагрузкой, засыпаем на чуть-чуть (между запросами)
             ratelimit = int(vuln_response.headers.get('x-vulners-ratelimit-reqlimit'))
