@@ -1,5 +1,6 @@
 # Zabbix Threat Control
-Оur plugin transforms your Zabbix monitoring system into an efficient harvester to manage the vulnerabilities, risk and security of your infrastructure.
+
+Оur plugin transforms your Zabbix monitoring system into vulnerabilities, risk and security managment system for your infrastructure.
 
   * [What the plugin does](#what-the-plugin-does)
   * [How the plugin works](#how-the-plugin-works)
@@ -11,26 +12,26 @@
   
 ## What the plugin does
 
-The plugin provides in Zabbix the information about the vulnerabilities of the entire infrastructure: the scope of the impact, and a list of affected hosts and ways to fix them.
+It provides Zabbix with information about vulnerabilities existing in your entire infrastructure and suggests easy applicable remediation plans.
 
-The Information is displayed in zabbix in the following form:
+Information is displayed in Zabbix in the following format:
 
-- CVSS score for each server.
-- Command to fix all detected vulnerabilities for each server.
-- List of security bulletins with the description of the vulnerabilities of the packages for the whole infrastructure.
-- List of the packages that are vulnerable for the whole infrastructure.
+- Maximum CVSS score for each server.
+- Command for fixing all detected vulnerabilities for each server.
+- List of security bulletins with descriptions for vulnerable packages actual for your infrastructure.
+- List of all vulnerable packages in your infrastructure.
 
 
 ![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/hosts.gif)
 
 
-The Information about the security bulletins and packages is presented in a following form:
+Security bulletins and packages information contains:
 
-- Index of the impact on the infrastructure
-- CVSS score of package or bulletins.
+- Impact index for the infrastructure
+- CVSS score of a package or a bulletin.
 - Number of affected servers.
 - A detailed list of affected hosts.
-- Hyperlink to the description of the bulletin.
+- Hyperlink to the description of a bulletin.
 
 ![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/pkgs.gif)
 
@@ -49,7 +50,9 @@ Using Zabbix API, receives the list of installed packages, the name and version 
 
 Transmits the data to Vulners, and receives information on the vulnerabilities of each server.
 
-Processes the received information, aggregates it and display it in Zabbix.
+Processes the received information, aggregates and send to Zabbix via zabbix-sender.
+
+Then Zabbix display it.
 
 ## Requirements
 
@@ -63,11 +66,11 @@ The plugin requires:
 
 ### RHEL
 
-    rpm -Uhv https://repo.vulners.com/redhat/vulners-repo-2018.06.09.el.noarch.rpm
+    rpm -Uhv https://repo.vulners.com/redhat/vulners-repo.rpm
 
 **On zabbix-server host:**
 
-    yum install zabbix-threat-control-main
+    yum install zabbix-threat-control-main zabbix-threat-control-host
 
 **For all servers that require a vulnerability scan:**
 
@@ -76,12 +79,12 @@ The plugin requires:
 
 ### Debian
 
-    wget https://repo.vulners.com/debian/vulners-repo_2018.06.09+stretch_all.deb
-    dpkg -i vulners-repo_2018.06.09+stretch_all.deb
+    wget https://repo.vulners.com/debian/vulners-repo.deb
+    dpkg -i vulners-repo.deb
 
 **On zabbix-server host:**
 
-    apt-get update && apt-get install zabbix-threat-control-main
+    apt-get update && apt-get install zabbix-threat-control-main zabbix-threat-control-host
 
 **For all servers that require a vulnerability scan:**
 
@@ -147,7 +150,7 @@ vuln_api_key = 'RGB9YPJG7CFAXP35PMDVYFFJPGZ9ZIRO1VGO9K9269B0K86K6XQQQR32O6007NUK
    * Dashboard; for their display.
 2. Following this step. Using the Zabbix web interface, it is necessary to link the "Template Vulners" template to the hosts that you are doing a vulnerabilities scan on.
 
-## Running
+## Execution
 
 Every day at 6 am, Zabbix will automatically receive the name, version and installed packages of the operation system of all servers.
 Data processing is performed by script /opt/monitoring/zbx-vulners/zbxvulners.py.
