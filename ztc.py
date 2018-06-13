@@ -242,7 +242,7 @@ for h in h_matrix:
             h_packages.append(h_pkg[0])
 
         # фиксируем в матрице только уникальные записи
-        h.update({'h_fix': h['vuln_data']['data']['cumulativeFix'].replace(',', ' '),
+        h.update({'h_fix': h['vuln_data']['data']['cumulativeFix'].replace(',', ''),
                   'h_score': h['vuln_data']['data']['cvss']['score'],
                   'h_packages': uniq_list(h_packages),
                   'h_bulletins': uniq_list(h_bulletins)})
