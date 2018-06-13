@@ -1,6 +1,6 @@
 # Zabbix Threat Control
 
-Оur plugin transforms your Zabbix monitoring system into vulnerabilities, risk and security managment system for your infrastructure.
+Оur plugin transforms your Zabbix monitoring system into vulnerability, risk and security managment system for your infrastructure.
 
   * [What the plugin does](#what-the-plugin-does)
   * [How the plugin works](#how-the-plugin-works)
@@ -60,7 +60,7 @@ This can be done directly from Zabbix (using its standard functionality) either 
 
 ## Installation
 
-### RHEL
+### RHEL, CentOS and other RPM-based
 
     rpm -Uhv https://repo.vulners.com/redhat/vulners-repo.rpm
 
@@ -73,7 +73,7 @@ This can be done directly from Zabbix (using its standard functionality) either 
     yum install zabbix-threat-control-host
 
 
-### Debian
+### Debian and other debian-based
 
     wget https://repo.vulners.com/debian/vulners-repo.deb
     dpkg -i vulners-repo.deb
