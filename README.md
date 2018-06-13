@@ -12,22 +12,22 @@
   
 ## What the plugin does
 
-It provides Zabbix with information about vulnerabilities existing in your entire infrastructure and suggests easy applicable remediation plans.
+It provides Zabbix with information about vulnerabilities existing in your entire infrastructure and suggests easily applicable remediation plans.
 
 Information is displayed in Zabbix in the following format:
 
 - Maximum CVSS score for each server.
 - Command for fixing all detected vulnerabilities for each server.
-- List of security bulletins with descriptions for vulnerable packages actual for your infrastructure.
+- List of security bulletins with descriptions for vulnerable packages valid for your infrastructure.
 - List of all vulnerable packages in your infrastructure.
 
 
 ![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/hosts.gif)
 
 
-Security bulletins and packages information contains:
+Security bulletins and packages information includes:
 
-- Impact index for the infrastructure
+- Impact index for the infrastructure.
 - CVSS score of a package or a bulletin.
 - Number of affected servers.
 - A detailed list of affected hosts.
@@ -35,7 +35,7 @@ Security bulletins and packages information contains:
 
 ![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/pkgs.gif)
 
-Sometimes it is quite difficult to update all packages on all servers to a version that fixes vulnerabilities. The offered format of the information representation helps to work selectively with both needed servers and particular packages.
+Sometimes it is impossible to update all packages on all servers to a version that fixes existing vulnerabilities. The offered format of the information representation helps to work selectively with both needed servers and particular packages.
 
 This approach allows you to fix the vulnerabilities of different strategies:
 
@@ -52,7 +52,7 @@ Transmits the data to Vulners, and receives information on the vulnerabilities o
 
 Processes the received information, aggregates and send to Zabbix via zabbix-sender.
 
-Then Zabbix display it.
+Then Zabbix displays it.
 
 ## Requirements
 
