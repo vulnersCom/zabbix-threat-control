@@ -279,9 +279,9 @@ try:
     dash_id = zapi.dashboard.create(name=c.dash_name, widgets=widgets, userGroups=[], users=[], private=0)
     dash_id = dash_id['dashboardids'][0]
     print(f'Created dashboard "{c.dash_name}" (id: {dash_id})\n\n'
-          f'Script "{c.stats_macros_value}" will be run every day at {start_hour}:30 am \n'
+          f'Script "{c.stats_macros_value}" will be run every day at {start_hour}:30\n'
           f'via the item "Service item..." on the host "{c.zbx_h_stats_vname}".\n\n'
-          f'Dashboard URL:\n{c.zbx_url}/zabbix.php?action=dashboard.view&dashboardid={dash_id}&fullscreen=1')
+          f'Dashboard URL:\n{c.zbx_url}/zabbix.php?action=dashboard.view&dashboardid={dash_id}&fullscreen=1\n')
 except Exception as e:
     print(f'Can\'t create dashboard "{c.dash_name}". Exception: {e}')
     exit(1)
