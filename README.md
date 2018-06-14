@@ -152,11 +152,19 @@ vuln_api_key = 'RGB9YPJG7CFAXP35PMDVYFFJPGZ9ZIRO1VGO9K9269B0K86K6XQQQR32O6007NUK
 
 
 Through the Zabbix web interface link "Template Vulners" template with hosts that need a vulnerability scan.
+
 ## Execution
 
-Every day at 6 am, Zabbix will automatically receive the name, version and installed packages of the operation system of all servers.
-Data processing is performed by script /opt/monitoring/zbx-vulners/zbxvulners.py.
-This script is launched by the zabbix-agent every day at 7 am via the item "Service item" on the host "Vulners - Statistics".
+- `/opt/monitoring/os-report/report.py`<br />
+  Transfers the name, version and installed packages of the operating system to Zabbix.<br />
+  Runs with zabbix-agent on all hosts to which the template "Vulners OS-Report" is linked.
+
+- `/opt/monitoring/zabbix-threat-control/ztc.py`<br />
+  Processes raw data from zabbix and vulners and push them to the monitoring system using zabbix-sender.<br />
+  Runs with zabbix-agent on the Zabbix server via the item "Service item" on the host "Vulners - Statistics".
+
+To run these scripts, you must allow remote commands from the Zabbix server (`EnableRemoteCommands = 1` parameter in the zabbix-agent configuration file).<br />
+Scripts are run once a day. The start-up time is selected randomly during the installation and does not change during operation.
 
 ## Usage
 It will be ready soon...
