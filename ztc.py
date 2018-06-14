@@ -20,7 +20,7 @@ import requests
 import ztc_config as c
 
 
-ztc_version = 0.1
+ztc_version = 0.2
 vulners_url = 'https://vulners.com/api/v3/audit/audit/'
 jpath_mask = 'data.packages.*.*.*'
 item_key = 'system.run[{$REPORT_SCRIPT_PATH} package]'
@@ -48,8 +48,9 @@ args = parser.parse_args()
 def logw(text, option='normal'):
     f = open(c.log_file, 'a')
     if option == 'normal':
-        now = datetime.now()
-        text = f'\n{now:%Y-%m-%d %H:%M:%S} {text}'
+        # now = datetime.now()
+        # text = f'\n{now:%Y-%m-%d %H:%M:%S} {text}'
+        text = '\n' + datetime.now().strftime('%Y-%m-%d %H:%M:%S ') + text
     f.write(text)
     f.close()
 
@@ -76,9 +77,10 @@ def os_data_valid(os, version, packages, host_name):
         if len(os) > 0 and float(version) != 0 and len(packages) > 5:
             return True
     except Exception as e:
-        logw(f'Excluded {host_name}. Exception: {e}')
+        logw('Excluded {host_name}. Exception: {e}'.format(host_name=host_name, e=e))
         return False
-    logw(f'Excluded {host_name}. ОS: {os}, Version: {version}, Packages: {len(packages)}')
+    logw('Excluded {host_name}. ОS: {os}, Version: {version}, Packages: {pkgs_len}'
+         .format(host_name=host_name, os=os, version=version, pkgs_len=len(packages)))
     return False
 
 
@@ -103,25 +105,25 @@ if len(c.vuln_api_key) != 64:
 try:
     zapi = ZabbixAPI(c.zbx_url, timeout=10)
     zapi.login(c.zbx_user, c.zbx_pass)
-    logw(f'Connected to Zabbix API Version {zapi.api_version()}')
+    logw('Connected to Zabbix API v.{zapi_ver}'.format(zapi_ver=zapi.api_version()))
 except Exception as e:
-    logw(f'Error: Can\'t connect to Zabbix API. Exception: {e}')
+    logw('Error: Can\'t connect to Zabbix API. Exception: {e}'.format(e=e))
     exit(1)
 
 # Если матрица хостов есть - загружаем дамп с диска
 if os.path.exists(c.h_matrix_dumpfile):
-    logw(f'Found a dump of the h_matrix in {c.h_matrix_dumpfile}. Loading.')
+    logw('Found a dump of the h_matrix in {h_matrix_dumpfile}. Loading.'.format(h_matrix_dumpfile=c.h_matrix_dumpfile))
     h_matrix = dump_load(c.h_matrix_dumpfile)
     total_hosts = len(h_matrix)
 else:
         # если дампа матрицы на диске нет - формируем (исходные данные из zabbix и затем обогащаем их через vulners)
     total_hosts = 0
     try:
-        h_matrix = zapi.item.get(search={'key_': item_key}, monitored=True, output=['hostid'])
+        h_matrix = zapi.item.get(search={'key_': item_key}, limit=5, monitored=True, output=['hostid'])
         full_hosts = len(h_matrix)
-        logw(f'Received from Zabbix {full_hosts} hosts for processing.')
+        logw('Received from Zabbix {full_hosts} hosts for processing.'.format(full_hosts=full_hosts))
     except Exception as e:
-        logw(f'Error: Can\'t get data from Zabbix. Exception: {e}')
+        logw('Error: Can\'t get data from Zabbix. Exception: {e}'.format(e=e))
         exit()
 
     logw('Receiving additional information for all hosts from Zabbix')
@@ -145,33 +147,37 @@ else:
 
             logw('.', 0)
         except Exception as e:
-            logw(f'[{current_host} in {full_hosts}] Skip, can\'t get additional data from Zabbix. Exception: {e}')
+            logw('[{current_host} in {full_hosts}] Skip, can\'t get additional data from Zabbix. Exception: {e}'
+                 .format(current_host=current_host, full_hosts=full_hosts, e=e))
             h.update({'software_full': '',
                       'os': '',
                       'version': '',
                       'v_name': '',
                       'host_name': ''})
             continue
-    logw(f' total: {current_host}.', 0)
+    logw(' total: {current_host}.'.format(current_host=current_host), 0)
 
-    logw(f'Checking data from Zabbix.')
+    logw('Checking data from Zabbix.')
     # удаляем невалидные элементы данных из матрицы (там где триплет с хоста не подходящй)
     h_matrix[:] = [h for h in h_matrix if os_data_valid(h['os'], h['version'], h['software_full'], h['v_name'])]
     total_hosts = len(h_matrix)
-    logw(f'After checking data from Zabbix, there are {total_hosts} entries left. Removed {full_hosts - total_hosts}.')
+    removed_cnt = full_hosts - total_hosts
+    logw('After checking data from Zabbix, there are {total_hosts} entries left. Removed {removed_cnt}.'
+         .format(total_hosts=total_hosts, removed_cnt=removed_cnt))
 
     # обогащаем матрицу данными от вулнерса
-    logw(f'Receiving the vulnerabilities from Vulners.')
+    logw('Receiving the vulnerabilities from Vulners.')
     current_host = 0
     logw('Processed hosts')
+    user_agent = 'vulners-ztc-{ztc_version}'.format(ztc_version=ztc_version)
     for h in h_matrix:
         current_host += 1
         try:
             os_data = '{"package":' + json.dumps(h['software_full']) + ',"os":"' + h['os'] + \
                       '","version":"' + h['version'] + '","apiKey":"' + c.vuln_api_key + '"}'
             # идем в вулнерс и получем там уязвимости для списка пакетов и ОС
-            vuln_response = requests.post(vulners_url, headers={'User-Agent': f'vulners-ztc-{ztc_version}',
-                                                                'Content-Type': 'application/json', }, data=os_data)
+            vuln_response = requests.post(vulners_url, data=os_data, headers={'User-Agent': user_agent,
+                                                                              'Content-Type': 'application/json', })
             h.update({'vuln_data': vuln_response.json()})
             # чтобы вулнерс не упал под нагрузкой, засыпаем на чуть-чуть (между запросами)
             ratelimit = int(vuln_response.headers.get('x-vulners-ratelimit-reqlimit'))
@@ -181,27 +187,27 @@ else:
         except Exception as e:
             sleep_timeout = 2
             h.update({'vuln_data': {'result': 'FAIL'}})
-            logw(f'[{current_host} in {total_hosts}] Skip {h["v_name"]}], '
-                 f'can\'t receive the vulnerabilities from Vulners. Exception: {e}')
+            logw('[{current_host} in {total_hosts}] Skip {v_name}], can\'t receive the vulnerabilities from Vulners. Exception: {e}'
+                 .format(current_host=current_host, total_hosts=total_hosts, v_name=h["v_name"], e=e))
             continue
-    logw(f' total: {current_host}.', 0)
+    logw(' total: {current_host}.'.format(current_host=current_host), 0)
 
-    logw(f'Checking data from Vulners.')
+    logw('Checking data from Vulners.')
     # удаляем невалидные элементы данных из матрицы (там где ответ вулнерс не подходящй)
     h_matrix[:] = [h for h in h_matrix if h['vuln_data']['result'] == 'OK']
     total_hosts = len(h_matrix)
-    logw(f'After checking data from Vulners there are {total_hosts} entries left.')
+    logw('After checking data from Vulners there are {total_hosts} entries left.'.format(total_hosts=total_hosts))
 
     if args.DumpHostMatrix:
         try:
             # сохраняем дамп матрицы хостов на диск
             dump_create(c.h_matrix_dumpfile, h_matrix)
-            logw(f'host-matrix saved to {c.h_matrix_dumpfile}.')
+            logw('host-matrix saved to {h_matrix_dumpfile}.'.format(h_matrix_dumpfile=c.h_matrix_dumpfil))
         except Exception as e:
-            logw(f'Can\'t dump host-matrix to disk. Exception: {e}')
+            logw('Can\'t dump host-matrix to disk. Exception: {e}'.format(e=e))
 
 if len(h_matrix) == 0:
-    logw(f'There are no data in the host-matrix for further processing. Exit.')
+    logw('There are no data in the host-matrix for further processing. Exit.')
     exit()
 
 logw('Сreating an additional field in the host-matrix based on data from Vulners')
@@ -251,14 +257,15 @@ for h in h_matrix:
 
         logw('.', 0)
     except Exception as e:
-        logw(f'[{current_host} of {total_hosts}] Skipping {h["v_name"]}. Exception: {e}')
+        logw('[{current_host} of {total_hosts}] Skipping {v_name}. Exception: {e}'
+             .format(current_host=current_host, total_hosts=total_hosts, v_name=h["v_name"], e=e))
         continue
-logw(f' total: {current_host}.', 0)
+logw(' total: {current_host}.'.format(current_host=current_host), 0)
 
 f = open(c.zsender_data_file, 'w')
 f_lld = open(c.zsender_lld_file, 'w')
 
-logw(f'Сreating an LLD-data: CVSS-Scores and Cumulative-Fix commands')
+logw('Сreating an LLD-data: CVSS-Scores and Cumulative-Fix commands')
 current_host = 0
 discovery_hosts = list()
 for h in h_matrix:
@@ -271,20 +278,23 @@ for h in h_matrix:
                                 '{#H.FIX}': h['h_fix'],
                                 '{#H.SCORE}': h['h_score']})
 
-        f.write(f'\"{c.zbx_h_hosts}\" vulners.hosts[{h["hostid"]}] {h["h_score"]}\n')
+        f.write('\"{zbx_h_hosts}\" vulners.hosts[{hostid}] {h_score}\n'
+                .format(zbx_h_hosts=c.zbx_h_hosts, hostid=h["hostid"], h_score=h["h_score"]))
     except Exception as e:
-        logw(f'[{current_host} of {total_hosts}] {h["v_name"]}. Exception: {e}')
+        logw('[{current_host} of {total_hosts}] {v_name}. Exception: {e}'
+             .format(current_host=current_host, total_hosts=total_hosts, v_name=h["v_name"], e=e))
         continue
 
 # преобразовываем список в однострочный json без пробелов и пишем в файл
 discovery_hosts_json = (json.dumps({'data': discovery_hosts})).replace(': ', ':').replace(', ', ',')
 
-f_lld.write(f'\"{c.zbx_h_hosts}\" vulners.hosts_lld {discovery_hosts_json}\n')
+f_lld.write('\"{zbx_h_hosts}\" vulners.hosts_lld {discovery_hosts_json}\n'
+            .format(zbx_h_hosts=c.zbx_h_hosts, discovery_hosts_json=discovery_hosts_json))
 
 ###########################
 # ФОРМИРУЕМ МАТРИЦУ ПАКЕТОВ
 ###########################
-logw(f'Creating an package-matrix.')
+logw('Creating an package-matrix.')
 
 # цель - найти все хосты, на которых зааффектило этот пакет, для этого
 pkg_matrix_tmp = list()
@@ -314,9 +324,9 @@ for row in h_matrix:
                 {'pkg': p_row['name'], 'score': p_row['score'], 'bull': p_row['bull'], 'host_list': host_list})
         logw('.', 0)
     except Exception as e:
-        logw(f'Skipping {row["v_name"]}. Exception: {e}')
+        logw('Skipping {v_name}. Exception: {e}'.format(v_name=row["v_name"], e=e))
         continue
-logw(f' total: {row_iter}.', 0)
+logw(' total: {row_iter}.'.format(row_iter=row_iter), 0)
 pkg_matrix = uniq_list(pkg_matrix_tmp)
 
 # logw(f'package-matrix ROW: {row_iter}')
@@ -325,7 +335,7 @@ pkg_matrix = uniq_list(pkg_matrix_tmp)
 # logw(f'package-matrix ROW->PKG->HOST->PKGS: {pp_iter}')
 
 # формируем пакет LLD-данных
-logw(f'Сreating an LLD-data for package monitoring.')
+logw('Сreating an LLD-data for package monitoring.')
 
 discovery_pkg = list()
 # для каждого бюллетеня (строки) в матрице бюллетеней строим LLD-json c кол-вом хостов, именем, баллами, влиянием
@@ -336,7 +346,8 @@ for p in pkg_matrix:
     pkg_score = p['score']
 
     # пишем данные касательно кол-ва хостов, затронутых этим пакетом
-    f.write(f'\"{c.zbx_h_pkgs}\" \"vulners.pkg[{pkg}]\" {affected_h_cnt}\n')
+    f.write('\"{zbx_h_pkgs}\" \"vulners.pkg[{pkg}]\" {affected_h_cnt}\n'
+            .format(zbx_h_pkgs=c.zbx_h_pkgs, pkg=pkg, affected_h_cnt=affected_h_cnt))
 
     # формируем LLD-JSON
     discovery_pkg.append({'{#PKG.ID}': pkg,
@@ -349,12 +360,13 @@ for p in pkg_matrix:
 # преобразовываем в однострочный json без пробелов и пишем в файл
 discovery_pkg_json = (json.dumps({'data': discovery_pkg})).replace(': ', ':').replace(', ', ',')
 
-f_lld.write(f'\"{c.zbx_h_pkgs}\" vulners.packages_lld {discovery_pkg_json}\n')
+f_lld.write('\"{zbx_h_pkgs}\" vulners.packages_lld {discovery_pkg_json}\n'
+            .format(zbx_h_pkgs=c.zbx_h_pkgs, discovery_pkg_json=discovery_pkg_json))
 
 ##############################
 # ФОРМИРУЕМ МАТРИЦУ БЮЛЛЕТЕНЕЙ
 ##############################
-logw(f'Creating an bulletin-matrix.')
+logw('Creating an bulletin-matrix.')
 
 bulletins_d = dict()
 full_bulletins_lst = list()
@@ -384,18 +396,18 @@ for d in h_matrix:
             full_bulletins_lst.append(bulletins_d)
         logw('.', 0)
     except Exception as e:
-        logw(f'Skipping entrie {bull_iter}. Exception: {e}')
+        logw('Skipping entrie {bull_iter}. Exception: {e}'.format(bull_iter=bull_iter, e=e))
         continue
-logw(f' total: {d_iter}.', 0)
-# logw(f'матрица бюллетеней ROW: {d_iter}')
-# logw(f'матрица бюллетеней ROW->BULL: {bull_iter}')
-# logw(f'матрица бюллетеней ROW->BULL->HOST: {hh_iter}')
+logw(' total: {d_iter}.'.format(d_iter=d_iter), 0)
+# logw(f'bulletin matirx ROW: {d_iter}')
+# logw(f'bulletin matirx ROW->BULL: {bull_iter}')
+# logw(f'bulletin matirx ROW->BULL->HOST: {hh_iter}')
 
 # оставляем только уникальные записи в списке (итоговая матрица)
 b_matrix = uniq_list(full_bulletins_lst)
 
 # формируем пакет LLD-данных
-logw(f'Сreating an LLD-data for bulletin monitoring..')
+logw('Сreating an LLD-data for bulletin monitoring..')
 
 discovery_data = list()
 # для каждого бюллетеня (строки) в матрице бюллетеней строим LLD-json c кол-вом хостов, именем, баллами, влиянием
@@ -406,7 +418,8 @@ for b in b_matrix:
     bulletin_impact = int(affected_h_cnt * bulletin_score)
 
     # пишем данные касательно кол-ва хостов, затронутых этим бюллетенем
-    f.write(f'\"{c.zbx_h_bulls}\" vulners.bulletin[{bullentin_name}] {affected_h_cnt}\n')
+    f.write('\"{zbx_h_bulls}\" vulners.bulletin[{bullentin_name}] {affected_h_cnt}\n'
+            .format(zbx_h_bulls=c.zbx_h_bulls, bullentin_name=bullentin_name, affected_h_cnt=affected_h_cnt))
 
     # формируем LLD-JSON
     discovery_data.append({'{#BULLETIN.ID}': bullentin_name,
@@ -418,9 +431,10 @@ for b in b_matrix:
 # преобразовываем в однострочный json без пробелов и пишем в файл
 discovery_json = (json.dumps({'data': discovery_data})).replace(': ', ':').replace(', ', ',')
 
-f_lld.write(f'\"{c.zbx_h_bulls}\" vulners.bulletins_lld {discovery_json}\n')
+f_lld.write('\"{zbx_h_bulls}\" vulners.bulletins_lld {discovery_json}\n'
+            .format(zbx_h_bulls=c.zbx_h_bulls, discovery_json=discovery_json))
 
-logw(f'Сreating an CVSS Score-based host-lists.')
+logw('Сreating an CVSS Score-based host-lists.')
 score_list = list()
 
 host_count_table = dict((score_value, 0) for score_value in range(0, 11))
@@ -433,7 +447,7 @@ for h in h_matrix:
 if len(score_list) == 0:
     score_list = [0]
 
-logw(f'Сreating an aggregated data.')
+logw('Сreating an aggregated data.')
 # считаем аггрегированыне метрики и пишем их в файл
 agg_score_median = median(map(float, score_list))
 agg_score_mean = mean(map(float, score_list))
@@ -441,25 +455,33 @@ agg_score_max = max(map(float, score_list))
 agg_score_min = min(map(float, score_list))
 
 for intScore in host_count_table:
-    f.write(f'\"{c.zbx_h_stats}\" vulners.hostsCountScore{intScore} {host_count_table.get(intScore)}\n')
-f.write(f'\"{c.zbx_h_stats}\" vulners.hostsCount {total_hosts}\n')
-f.write(f'\"{c.zbx_h_stats}\" vulners.scoreMedian {agg_score_median}\n')
-f.write(f'\"{c.zbx_h_stats}\" vulners.scoreMean {agg_score_mean}\n')
-f.write(f'\"{c.zbx_h_stats}\" vulners.scoreMax {agg_score_max}\n')
-f.write(f'\"{c.zbx_h_stats}\" vulners.scoreMin {agg_score_min}\n')
+    f.write('\"{zbx_h_stats}\" vulners.hostsCountScore{intScore} {aff}\n'
+            .format(zbx_h_stats=c.zbx_h_stats, intScore=intScore, aff=host_count_table.get(intScore)))
+f.write('\"{zbx_h_stats}\" vulners.hostsCount {total_hosts}\n'
+        .format(zbx_h_stats=c.zbx_h_stats, total_hosts=total_hosts))
+f.write('\"{zbx_h_stats}\" vulners.scoreMedian {agg_score_median}\n'
+        .format(zbx_h_stats=c.zbx_h_stats, agg_score_median=agg_score_median))
+f.write('\"{zbx_h_stats}\" vulners.scoreMean {agg_score_mean}\n'
+        .format(zbx_h_stats=c.zbx_h_stats, agg_score_mean=agg_score_mean))
+f.write('\"{zbx_h_stats}\" vulners.scoreMax {agg_score_max}\n'
+        .format(zbx_h_stats=c.zbx_h_stats, agg_score_max=agg_score_max))
+f.write('\"{zbx_h_stats}\" vulners.scoreMin {agg_score_min}\n'
+        .format(zbx_h_stats=c.zbx_h_stats, agg_score_min=agg_score_min))
 
 f.close()
 f_lld.close()
 
 # пушим в заббикс полученные баллы и фиксы для всех хостов
-push_cmd = f'zabbix_sender -z {c.zbx_server} -p {c.zbx_port} -i {c.zsender_data_file}'
-push_lld_cmd = f'zabbix_sender -z {c.zbx_server} -p {c.zbx_port} -i {c.zsender_lld_file}'
+push_cmd = 'zabbix_sender -z {zbx_server} -p {zbx_port} -i {zsender_data_file}'\
+           .format(zbx_server=c.zbx_server, zbx_port=c.zbx_port, zsender_data_file=c.zsender_data_file)
+push_lld_cmd = 'zabbix_sender -z {zbx_server} -p {zbx_port} -i {zsender_lld_file}'\
+               .format(zbx_server=c.zbx_server, zbx_port=c.zbx_port, zsender_lld_file=c.zsender_lld_file)
 
 if args.BypassZbxPush:
     logw('The transfer of data to zabbix is disabled, but can be performed by commands:')
-    logw(f'{push_lld_cmd}; sleep 300; {push_cmd}')
+    logw('{push_lld_cmd}; sleep 300; {push_cmd}'.format(push_lld_cmd=push_lld_cmd, push_cmd=push_cmd))
 else:
-    logw(f'Pushing data to Zabbix.')
+    logw('Pushing data to Zabbix.')
     shell(push_lld_cmd)
     logw(push_lld_cmd)
 
