@@ -104,6 +104,7 @@ if len(c.vuln_api_key) != 64:
 # создаем сессию в заббикс
 try:
     zapi = ZabbixAPI(c.zbx_url, timeout=10)
+    zapi.session.verify = c.zbx_verify_ssl_certs
     zapi.login(c.zbx_user, c.zbx_pass)
     logw('Connected to Zabbix API v.{zapi_ver}'.format(zapi_ver=zapi.api_version()))
 except Exception as e:

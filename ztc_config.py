@@ -6,6 +6,7 @@ zbx_url = 'https://zabbixfront.yourdomain.com'
 
 zbx_server = 'zabbixserver.yourdomain.com'
 zbx_port = '10051'
+zbx_verify_ssl_certs = True
 
 log_file = '/var/log/zabbix-threat-control.log'
 zsender_lld_file =  '/opt/monitoring/zabbix-threat-control/zbx_lld'
