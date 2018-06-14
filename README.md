@@ -7,7 +7,7 @@
   * [Requirements](#requirements)
   * [Installation](#installation)
   * [Сonfiguration](#configuration)
-  * [Running](#running)
+  * [Execution](#execution)
   * [Usage](#usage)
   
 ## What the plugin does
@@ -54,8 +54,8 @@ This can be done directly from Zabbix (using its standard functionality) either 
 
 ## Requirements
 
-- python 3.6
-- python modules: pyzabbix, jpath, requests 
+- python 3 (only for ztc scripts)
+- python modules: pyzabbix, jpath, requests
 - zabbix-sender utility for sending monitoring data to Zabbix server.
 
 ## Installation
