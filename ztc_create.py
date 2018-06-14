@@ -59,6 +59,7 @@ def z_host_create(zbx_host, zbx_vname, group_id, appl_name, lld_name, lld_key, i
 
 try:
     zapi = ZabbixAPI(c.zbx_url, timeout=5)
+    zapi.session.verify = c.zbx_verify_ssl_certs
     zapi.login(c.zbx_user, c.zbx_pass)
     zapi_ver = zapi.api_version()
     print('Connected to Zabbix API v.{zapi_ver}'.format(zapi_ver=zapi.api_version()))
