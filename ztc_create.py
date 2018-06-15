@@ -143,8 +143,8 @@ bulls_id = z_host_create(zbx_host=c.zbx_h_bulls,
                          item_proto_name='[{#BULLETIN.SCORE}] [{#BULLETIN.ID}] - affected hosts',
                          item_proto_key='vulners.bulletin[{#BULLETIN.ID}]',
                          trig_proto_expr='{' + c.zbx_h_bulls + ':vulners.bulletin[{#BULLETIN.ID}].last()}>0 and {#BULLETIN.SCORE}>={$SCORE.MIN}',
-                         # trig_proto_descr='Impact {#BULLETIN.IMPACT}. Score {#BULLETIN.SCORE}. Affected {ITEM.LASTVALUE}. Bulletin = {#BULLETIN.ID}',
-                         trig_proto_descr='Impact {#BULLETIN.IMPACT}. Score {#BULLETIN.SCORE}. Affected {#BULLETIN.AFFECTED}. Bulletin = {#BULLETIN.ID}',
+                         trig_proto_descr='Impact {#BULLETIN.IMPACT}. Score {#BULLETIN.SCORE}. Affected {ITEM.LASTVALUE}. Bulletin = {#BULLETIN.ID}',
+                         # trig_proto_descr='Impact {#BULLETIN.IMPACT}. Score {#BULLETIN.SCORE}. Affected {#BULLETIN.AFFECTED}. Bulletin = {#BULLETIN.ID}',
                          trig_proto_url='https://vulners.com/info/{#BULLETIN.ID}',
                          trig_proto_comm='Vulnerabilities are found on:\r\n\r\n{#BULLETIN.HOSTS}')
 
@@ -159,8 +159,8 @@ pkgs_id = z_host_create(zbx_host=c.zbx_h_pkgs,
                         item_proto_name='[{#PKG.SCORE}] [{#PKG.ID}] - affected hosts',
                         item_proto_key='vulners.pkg[{#PKG.ID}]',
                         trig_proto_expr='{' + c.zbx_h_pkgs + ':vulners.pkg[{#PKG.ID}].last()}>0 and {#PKG.SCORE}>={$SCORE.MIN}',
-                        # trig_proto_descr='Impact {#PKG.IMPACT}. Score {#PKG.SCORE}. Affected {ITEM.LASTVALUE}. Package = {#PKG.ID}',
-                        trig_proto_descr='Impact {#PKG.IMPACT}. Score {#PKG.SCORE}. Affected {#PKG.AFFECTED}. Package = {#PKG.ID}',
+                        trig_proto_descr='Impact {#PKG.IMPACT}. Score {#PKG.SCORE}. Affected {ITEM.LASTVALUE}. Package = {#PKG.ID}',
+                        # trig_proto_descr='Impact {#PKG.IMPACT}. Score {#PKG.SCORE}. Affected {#PKG.AFFECTED}. Package = {#PKG.ID}',
                         trig_proto_url='https://vulners.com/info/{#PKG.URL}',
                         trig_proto_comm='Vulnerabilities are found on:\r\n\r\n{#PKG.HOSTS}')
 
