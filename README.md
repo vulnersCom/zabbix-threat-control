@@ -56,7 +56,8 @@ This can be done directly from Zabbix (using its standard functionality) either 
 
 - python 3 (only for ztc scripts)
 - python modules: pyzabbix, jpath, requests
-- zabbix-sender utility for sending monitoring data to Zabbix server.
+- zabbix-agent for collect data and run scripts.
+- zabbix-sender utility for sending data to zabbix-server.
 
 ## Installation
 
@@ -148,22 +149,18 @@ vuln_api_key = 'RGB9YPJG7CFAXP35PMDVYFFJPGZ9ZIRO1VGO9K9269B0K86K6XQQQR32O6007NUK
    * **A template** used to collect data from servers.
    * **Zabbix hosts** for obtaining data on vulnerabilities.
    * **A dashboard** for displaying results.
-2. Using the Zabbix web interface, it is necessary to link the "Template Vulners" template with the hosts that you are doing a vulnerabilities scan on.
+2. Using the Zabbix web interface, it is necessary to link the "Vulners OS-Report" template with the hosts that you are doing a vulnerabilities scan on.
 
-
-Through the Zabbix web interface link "Template Vulners" template with hosts that need a vulnerability scan.
 
 ## Execution
 
-- `/opt/monitoring/os-report/report.py`<br />
-  Transfers the name, version and installed packages of the operating system to Zabbix.<br />
+- `/opt/monitoring/os-report/report.py` transfers the name, version and installed packages of the operating system to Zabbix.<br />
   Runs with zabbix-agent on all hosts to which the template "Vulners OS-Report" is linked.
 
-- `/opt/monitoring/zabbix-threat-control/ztc.py`<br />
-  Processes raw data from zabbix and vulners and push them to the monitoring system using zabbix-sender.<br />
+- `/opt/monitoring/zabbix-threat-control/ztc.py` processes raw data from zabbix and vulners and push them to the monitoring system using zabbix-sender.<br />
   Runs with zabbix-agent on the Zabbix server via the item "Service item" on the host "Vulners - Statistics".
 
-To run these scripts, you must allow remote commands from the Zabbix server (`EnableRemoteCommands = 1` parameter in the zabbix-agent configuration file).<br />
+To run these scripts, you should allow to execute the remote commands from the Zabbix server (`EnableRemoteCommands = 1` parameter in the zabbix-agent configuration file).<br />
 Scripts are run once a day. The start-up time is selected randomly during the installation and does not change during operation.
 
 ## Usage
