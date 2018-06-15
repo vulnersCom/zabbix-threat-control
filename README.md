@@ -56,7 +56,7 @@ This can be done directly from Zabbix (using its standard functionality) either 
 
 - python 3 (only for ztc scripts)
 - python modules: pyzabbix, jpath, requests
-- zabbix v3.4. This version is required to create a custom polling schedule for checking the item.
+- zabbix version 3.4 is required to create a custom dashboard.
 - zabbix-agent for collect data and run scripts.
 - zabbix-sender utility for sending data to zabbix-server.
 
