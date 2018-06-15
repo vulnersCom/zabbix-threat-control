@@ -20,7 +20,7 @@ import requests
 import ztc_config as c
 
 
-ztc_version = 0.2
+ztc_version = "0.3.1"
 vulners_url = 'https://vulners.com/api/v3/audit/audit/'
 jpath_mask = 'data.packages.*.*.*'
 item_key = 'system.run[{$REPORT_SCRIPT_PATH} package]'
