@@ -16,7 +16,7 @@ from pyzabbix import ZabbixAPI
 import ztc_config as c
 
 
-start_hour = randint(1, 24)
+start_hour = randint(1, 23)
 timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
 
