@@ -39,7 +39,7 @@ def z_host_create(zbx_host, zbx_vname, group_id, appl_name, lld_name, lld_key, i
                                                 'port': '10050'}])['hostids'][0]
         appl_id = zapi.application.create(name=appl_name, hostid=host_id)['applicationids'][0]
         lld_id = zapi.discoveryrule.create(type=2, hostid=host_id, name=lld_name, key_=lld_key, value_type='4',
-                                           trapper_hosts='', units='', lifetime='0d')['itemids'][0]
+                                           trapper_hosts='', units='', lifetime='0')['itemids'][0]
         item_proto_id = zapi.itemprototype.create({'hostid': host_id, 'ruleid': lld_id,
                                                    'name': item_proto_name, 'key_': item_proto_key,
                                                    'delay': '0', 'status': '0', 'type': '2',
@@ -62,9 +62,10 @@ try:
     zapi.session.verify = c.zbx_verify_ssl_certs
     zapi.login(c.zbx_user, c.zbx_pass)
     zapi_ver = zapi.api_version()
+    # todo: checking that zabbix version >= 3.4
     print('Connected to Zabbix API v.{zapi_ver}'.format(zapi_ver=zapi.api_version()))
 except Exception as e:
-    print('Error: {e}'.format(e=e))
+    print('Error: Can\'t connect to Zabbix API. Exception: {e}'.format(e=e))
     exit(1)
 
 
@@ -102,7 +103,7 @@ try:
 
     zapi.item.create(name='OS - Name', key_='system.run[{$REPORT_SCRIPT_PATH} os]', hostid=tmpl_id, type=0,
                      value_type=4, interfaceid='0', applications=[tmpl_app_id], delay=delay_report,
-                     inventory_link=5)
+                     inventory_link=7)
 
     zapi.item.create(name='OS - Version', key_='system.run[{$REPORT_SCRIPT_PATH} version]', hostid=tmpl_id, type=0,
                      value_type=4, interfaceid='0', applications=[tmpl_app_id], delay=delay_report,
