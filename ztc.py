@@ -2,8 +2,8 @@
 
 """Zabbix vulnerability assessment plugin."""
 
-__author__ = '@samosvat'
-__version__ = '0.3.2'
+__author__ = 'samosvat'
+__version__ = '0.3.1'
 
 import argparse
 import json

@@ -9,8 +9,8 @@ Script will create these objects in Zabbix using the API:
     - Dashboard; for their display.
 """
 
-__author__ = '@samosvat'
-__version__ = '0.3.2'
+__author__ = 'samosvat'
+__version__ = '0.3.1'
 
 from datetime import datetime
 from random import randint
@@ -22,7 +22,7 @@ import ztc_config as c
 
 start_hour = randint(1, 23)
 timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-
+required_zapi_ver = 3.4
 
 def z_host_create(zbx_host, zbx_vname, group_id, appl_name, lld_name, lld_key, item_proto_name, item_proto_key,
                   trig_proto_expr, trig_proto_descr, trig_proto_url, trig_proto_comm, ):
@@ -67,10 +67,9 @@ try:
     zapi.login(c.zbx_user, c.zbx_pass)
     zapi_ver = zapi.api_version()
     print('Connected to Zabbix API v.{zapi_ver}'.format(zapi_ver=zapi.api_version()))
-    zapi_ver_major = zapi_ver.split('.')[0]
-    zapi_ver_minor = zapi_ver.split('.')[1]
-    if zapi_ver_major < 3 and zapi_ver_minor < 4:
-        print('Required Zabbix version 3.4 or higher\nExit.')
+    zapi_ver_float = float(zapi_ver.split('.')[0] + '.' + zapi_ver.split('.')[1])
+    if zapi_ver_float < required_zapi_ver:
+        print('Required Zabbix version {} or higher\nExit.'.format(required_zapi_ver))
         exit(0)
 except Exception as e:
     print('Error: Can\'t connect to Zabbix API. Exception: {e}'.format(e=e))
