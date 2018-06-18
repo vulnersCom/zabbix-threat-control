@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
+
 """Zabbix vulnerability assessment plugin."""
+
+__author__ = '@samosvat'
+__version__ = '0.3.2'
 
 import argparse
 import json
@@ -20,7 +24,6 @@ import requests
 import ztc_config as c
 
 
-ztc_version = '0.3.1'
 vulners_url = 'https://vulners.com/api/v3/audit/audit/'
 jpath_mask = 'data.packages.*.*.*'
 item_key = 'system.run[{$REPORT_SCRIPT_PATH} package]'
@@ -106,7 +109,6 @@ try:
     zapi = ZabbixAPI(c.zbx_url, timeout=10)
     zapi.session.verify = c.zbx_verify_ssl_certs
     zapi.login(c.zbx_user, c.zbx_pass)
-    # todo: checking that zabbix version >= 3.4
     logw('Connected to Zabbix API v.{zapi_ver}'.format(zapi_ver=zapi.api_version()))
 except Exception as e:
     logw('Error: Can\'t connect to Zabbix API. Exception: {e}'.format(e=e))
@@ -171,7 +173,7 @@ else:
     logw('Receiving the vulnerabilities from Vulners.')
     current_host = 0
     logw('Processed hosts')
-    user_agent = 'vulners-ztc-{ztc_version}'.format(ztc_version=ztc_version)
+    user_agent = 'vulners-ztc-{version}'.format(version=__version__)
     for h in h_matrix:
         current_host += 1
         try:
