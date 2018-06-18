@@ -20,7 +20,7 @@ import requests
 import ztc_config as c
 
 
-ztc_version = "0.3.1"
+ztc_version = '0.3.1'
 vulners_url = 'https://vulners.com/api/v3/audit/audit/'
 jpath_mask = 'data.packages.*.*.*'
 item_key = 'system.run[{$REPORT_SCRIPT_PATH} package]'
@@ -106,6 +106,7 @@ try:
     zapi = ZabbixAPI(c.zbx_url, timeout=10)
     zapi.session.verify = c.zbx_verify_ssl_certs
     zapi.login(c.zbx_user, c.zbx_pass)
+    # todo: checking that zabbix version >= 3.4
     logw('Connected to Zabbix API v.{zapi_ver}'.format(zapi_ver=zapi.api_version()))
 except Exception as e:
     logw('Error: Can\'t connect to Zabbix API. Exception: {e}'.format(e=e))
@@ -135,12 +136,12 @@ else:
         try:
             z = zapi.host.get(filter={'hostid': h['hostid']},
                               output=['host', 'name'],
-                              selectInventory=['os', 'os_full', 'software_full'])
+                              selectInventory=['os_short', 'os_full', 'software_full'])
 
             # обновляем строку в матрице (пишем в матрицу полученные данные)
             h.update({'software_full': z[0]['inventory']['software_full'].splitlines(),
                       # 'os':          z[0]['inventory']['os'],
-                      'os': re.sub('ol', 'oraclelinux', z[0]['inventory']['os']),
+                      'os': re.sub('ol', 'oraclelinux', z[0]['inventory']['os_short']),
                       'version': z[0]['inventory']['os_full'],
                       'v_name': z[0]['name'],
                       # 'h_ip':          z[0]['interfaces'][0]['ip'],
@@ -189,7 +190,7 @@ else:
             sleep_timeout = 2
             h.update({'vuln_data': {'result': 'FAIL'}})
             logw('[{current_host} in {total_hosts}] Skip {v_name}], can\'t receive the vulnerabilities from Vulners. Exception: {e}'
-                 .format(current_host=current_host, total_hosts=total_hosts, v_name=h["v_name"], e=e))
+                 .format(current_host=current_host, total_hosts=total_hosts, v_name=h['v_name'], e=e))
             continue
     logw(' total: {current_host}.'.format(current_host=current_host), 0)
 
@@ -259,7 +260,7 @@ for h in h_matrix:
         logw('.', 0)
     except Exception as e:
         logw('[{current_host} of {total_hosts}] Skipping {v_name}. Exception: {e}'
-             .format(current_host=current_host, total_hosts=total_hosts, v_name=h["v_name"], e=e))
+             .format(current_host=current_host, total_hosts=total_hosts, v_name=h['v_name'], e=e))
         continue
 logw(' total: {current_host}.'.format(current_host=current_host), 0)
 
@@ -280,10 +281,10 @@ for h in h_matrix:
                                 '{#H.SCORE}': h['h_score']})
 
         f.write('\"{zbx_h_hosts}\" vulners.hosts[{hostid}] {h_score}\n'
-                .format(zbx_h_hosts=c.zbx_h_hosts, hostid=h["hostid"], h_score=h["h_score"]))
+                .format(zbx_h_hosts=c.zbx_h_hosts, hostid=h['hostid'], h_score=h['h_score']))
     except Exception as e:
         logw('[{current_host} of {total_hosts}] {v_name}. Exception: {e}'
-             .format(current_host=current_host, total_hosts=total_hosts, v_name=h["v_name"], e=e))
+             .format(current_host=current_host, total_hosts=total_hosts, v_name=h['v_name'], e=e))
         continue
 
 # преобразовываем список в однострочный json без пробелов и пишем в файл
@@ -325,7 +326,7 @@ for row in h_matrix:
                 {'pkg': p_row['name'], 'score': p_row['score'], 'bull': p_row['bull'], 'host_list': host_list})
         logw('.', 0)
     except Exception as e:
-        logw('Skipping {v_name}. Exception: {e}'.format(v_name=row["v_name"], e=e))
+        logw('Skipping {v_name}. Exception: {e}'.format(v_name=row['v_name'], e=e))
         continue
 logw(' total: {row_iter}.'.format(row_iter=row_iter), 0)
 pkg_matrix = uniq_list(pkg_matrix_tmp)
