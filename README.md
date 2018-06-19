@@ -116,7 +116,7 @@ Configuration file is located here: `/opt/monitoring/zabbix-threat-control/ztc_c
 
 In order to connect to Zabbix you need to specify the following in the configuration file:
 -	The URL, username and password. Note that the User should have rights to create groups, hosts and templates in Zabbix.
--	Address and port of the Zabbix-server for pushing data using the zabbix-sender.
+-	Domain name and port of the Zabbix-server for pushing data using the zabbix-sender.
 
 Here is an example of a valid config file:
 
@@ -125,7 +125,7 @@ zbx_pass = 'yourpassword'
 zbx_user = 'yourlogin'
 zbx_url = 'https://zabbixfront.yourdomain.com'
 
-zbx_server = 'zabbixserver.yourdomain.com'
+zbx_server_fqdn = 'zabbixserver.yourdomain.com'
 zbx_port = '10051'
 ```
 ### Vulners credentials
