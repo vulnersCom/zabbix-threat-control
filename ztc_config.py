@@ -6,7 +6,7 @@ zbx_url = 'https://zabbixfront.yourdomain.com'
 zbx_verify_ssl_certs = True
 
 zbx_server_fqdn = 'zabbixserver.yourdomain.com'
-zbx_port = '10051'
+zbx_server_port = '10051'
 
 use_zbx_agent_to_fix = True
 acknowledge_user = 'Admin'

@@ -126,7 +126,7 @@ zbx_user = 'yourlogin'
 zbx_url = 'https://zabbixfront.yourdomain.com'
 
 zbx_server_fqdn = 'zabbixserver.yourdomain.com'
-zbx_port = '10051'
+zbx_server_port = '10051'
 ```
 ### Vulners credentials
 
