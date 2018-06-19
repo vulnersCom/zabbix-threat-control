@@ -87,7 +87,7 @@ try:
     ack = zapi.event.get(eventids=event_id, select_acknowledges=['alias', 'message'], output=['alias', 'message'])
     ack_alias = ack[0]['acknowledges'][0]['alias']
     if ack_alias != c.acknowledge_user:
-        logging.info('Not trusted acknowledge user: {}.\nSkipping this request to fix.'.format(ack_alias))
+        logging.info('Not trusted user in acknowledge: {}.\nSkipping this request to fix.'.format(ack_alias))
         exit(0)
     tg = zapi.trigger.get(triggerids=trigger_id, output='extend')[0]
 except Exception as e:

@@ -450,8 +450,8 @@ f.close()
 f_lld.close()
 
 # пушим в заббикс полученные баллы и фиксы для всех хостов
-push_lld_cmd = 'zabbix_sender -z {} -p {} -i {}'.format(c.zbx_server_fqdn, c.zbx_port, c.zsender_lld_file)
-push_cmd = 'zabbix_sender -z {} -p {} -i {}'.format(c.zbx_server_fqdn, c.zbx_port, c.zsender_data_file)
+push_lld_cmd = 'zabbix_sender -z {} -p {} -i {}'.format(c.zbx_server_fqdn, c.zbx_server_port, c.zsender_lld_file)
+push_cmd = 'zabbix_sender -z {} -p {} -i {}'.format(c.zbx_server_fqdn, c.zbx_server_port, c.zsender_data_file)
 
 if args.BypassZbxPush:
     logging.info('The transfer of data to zabbix is disabled, but can be performed by commands:')
