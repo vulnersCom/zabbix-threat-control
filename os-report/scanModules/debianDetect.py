@@ -58,6 +58,6 @@ class debBasedDetect(linuxDetect):
 
     def getPkg(self):
         pkgList = self.sshCommand("dpkg-query -W -f='${Package} ${Version} ${Architecture}\n'")
-        return pkgList.splitlines()
+        return pkgList
 
 
