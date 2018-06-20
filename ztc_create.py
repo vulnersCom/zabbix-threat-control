@@ -7,21 +7,47 @@ Script will create these objects in Zabbix using the API:
     - A template; through which data will be collected from the servers.
     - Zabbix hosts; for obtaining data on vulnerabilities.
     - Dashboard; for their display.
+    - Action; for run the command fixes the vulnerability.
 """
 
 __author__ = 'samosvat'
 __version__ = '0.3.2'
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from random import randint
+import subprocess
 
 from pyzabbix import ZabbixAPI
 
 import ztc_config as c
 
-start_hour = randint(1, 23)
 timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+
+host_start_time = datetime.now() + timedelta(minutes=randint(60, 1380))
+ztc_start_time = (host_start_time + timedelta(minutes=10))
+delay_report = host_start_time.strftime('0;wd1-7h%Hm%M')
+delay_ztc = ztc_start_time.strftime('0;wd1-7h%Hm%M')
+
 required_zapi_ver = 3.4
+
+
+def check_zutils(check_type, host_conn):
+    if check_type == 'agent':
+        check_key = 'CheckRemoteCommand'
+        cmd = 'zabbix_get -s {host_conn} -k  system.run["echo {check_key}"]'.format(host_conn=host_conn, check_key=check_key)
+    elif check_type == 'server':
+        check_key = '"response":"success"'
+        cmd = 'zabbix_sender -z {host_conn} -p {port} -s zabbix_sender_ztc_test -k zabbix_sender_ztc_test -o 1 -vv'.format(host_conn=host_conn, port=c.zbx_server_port, check_key=check_key)
+    else:
+        return False, 1, 1
+
+    proc = subprocess.Popen(cmd, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, shell=True)
+    out = proc.communicate()[0].decode('utf8')
+    exitcode = proc.poll()
+    if out.find(check_key) != -1:
+        return True, out, exitcode, cmd
+    else:
+        return False, out, exitcode, cmd
 
 
 def z_host_create(zbx_host, zbx_vname, group_id, appl_name, lld_name, lld_key, item_proto_name, item_proto_key,
@@ -39,8 +65,8 @@ def z_host_create(zbx_host, zbx_vname, group_id, appl_name, lld_name, lld_key, i
         host_id = zapi.host.create(host=zbx_host, name=zbx_vname, groups=[{'groupid': group_id}],
                                    macros=[{'macro': '{$SCORE.MIN}', 'value': 8}],
                                    interfaces=[
-                                       {'type': 1, 'main': 1, 'useip': 0, 'ip': '127.0.0.1', 'dns': c.zbx_server_fqdn,
-                                        'port': '10050'}])['hostids'][0]
+                                       {'type': 1, 'main': 1, 'useip': host_use_ip, 'ip': '127.0.0.1',
+                                        'dns': c.zbx_server_fqdn, 'port': '10050'}])['hostids'][0]
         appl_id = zapi.application.create(name=appl_name, hostid=host_id)['applicationids'][0]
         lld_id = zapi.discoveryrule.create(type=2, hostid=host_id, name=lld_name, key_=lld_key, value_type='4',
                                            trapper_hosts='', units='', lifetime='0')['itemids'][0]
@@ -75,10 +101,38 @@ except Exception as e:
     print('Error: Can\'t connect to Zabbix API. Exception: {}'.format(e))
     exit(1)
 
+
+host_use_ip = 1
+print('Checking the connection to the zabbix-agent...')
+
+za_out = check_zutils('agent', '127.0.0.1')
+if za_out[0] is True:
+    print('Сompleted successfully. For connecting with zabbix-agent used address "127.0.0.1"\n')
+else:
+    host_use_ip = 0
+    za_out = check_zutils('agent', c.zbx_server_fqdn)
+    if za_out[0] is True:
+        print('For connecting with zabbix-agent used address "{}"\n'.format(c.zbx_server_fqdn))
+    else:
+        print('Error: Can\'t execute remote command on zabbix-agent:\n'
+              'Command: {}\n{}\nPlease fix this for continue!'.format(za_out[3], za_out[1]))
+        exit(1)
+
+
+print('Checking the connection to the zabbix-server via zabbix_sender...')
+zs_out = check_zutils('server', c.zbx_server_fqdn)
+if zs_out[0] is True:
+    print('Сompleted successfully.\n')
+else:
+    print('Error: Can\'t send data with zabbix-sender:\n'
+          'Command: {}\n{}\n\nPlease fix this for continue!'.format(zs_out[3], zs_out[1]))
+    exit(1)
+
+
 # HOSTGROUP
 try:
     group_id = zapi.hostgroup.get(filter={'name': c.group_name}, output=['groupid'])[0]['groupid']
-    print('Host group "{}" already exists (id: {}).\n'.format(c.group_name, group_id))
+    print('Host group "{}" already exists (id: {}). Use this group.\n'.format(c.group_name, group_id))
 except IndexError:
     group_id = zapi.hostgroup.create(name=c.group_name)['groupids'][0]
     print('Created host group "{}" (id: {}).\n'.format(c.group_name, group_id))
@@ -97,7 +151,6 @@ try:
 except Exception:
     tmpl_id = None
 
-delay_report = '0;wd1-7h{}'.format(start_hour)
 
 try:
     tmpl_id = zapi.template.create(groups={'groupid': 1},
@@ -174,16 +227,17 @@ try:
     bkp_h_stats = c.zbx_h_stats + '.bkp-' + timestamp
     bkp_h_stats_vname = c.zbx_h_stats_vname + '.bkp-' + timestamp
     zapi.host.update(hostid=host_id, host=bkp_h_stats, name=bkp_h_stats_vname, status=1)
-    print('Host "{}" (id: {}) was renamed to "{}"'.format(c.zbx_h_stats_vname, host_id, bkp_h_stats_vname))
+    print('Host "{}" (id: {}) was renamed to "{}" and deactivated'.format(c.zbx_h_stats_vname, host_id, bkp_h_stats_vname))
 except Exception:
     host_id = None
 
-delay_ztc = '0;wd1-7h{}m30'.format(start_hour)
+
 try:
     host_id = zapi.host.create(host=c.zbx_h_stats, name=c.zbx_h_stats_vname, groups=[{'groupid': group_id}],
                                macros=[{'macro': c.stats_macros_name, 'value': c.stats_macros_value}],
-                               interfaces=[{'type': 1, 'main': 1, 'useip': 0, 'ip': '127.0.0.1', 'dns': c.zbx_server_fqdn,
-                                            'port': '10050'}])['hostids'][0]
+                               interfaces=[
+                                   {'type': 1, 'main': 1, 'useip': host_use_ip, 'ip': '127.0.0.1',
+                                    'dns': c.zbx_server_fqdn, 'port': '10050'}])['hostids'][0]
 
     appl_id = zapi.application.create(name=c.appl_name, hostid=host_id)['applicationids'][0]
 
@@ -249,7 +303,6 @@ except Exception as e:
     print('Can\'t create host "{}". Exception: {}'.format(c.zbx_h_stats_vname, e))
     exit(1)
 
-
 try:
     action_id = zapi.action.get(filter={'name': c.action_name}, output=['actionid'])[0]['actionid']
     bkp_action_name = c.zbx_h_stats + '.bkp-' + timestamp
@@ -262,8 +315,10 @@ action_id = zapi.action.create(name=c.action_name, eventsource=0, status=0, esc_
                                def_shortdata='{TRIGGER.NAME}: {TRIGGER.STATUS}',
                                def_longdata='{TRIGGER.NAME}: {TRIGGER.STATUS}',
                                filter={'evaltype': 0, 'formula': '', 'conditions': [
-                                   {'conditiontype': 1, 'operator': 0, 'value': pkgs_id, 'value2': '', 'formulaid': 'A'},
-                                   {'conditiontype': 1, 'operator': 0, 'value': hosts_id, 'value2': '', 'formulaid': 'B'}]},
+                                   {'conditiontype': 1, 'operator': 0, 'value': pkgs_id, 'value2': '',
+                                    'formulaid': 'A'},
+                                   {'conditiontype': 1, 'operator': 0, 'value': hosts_id, 'value2': '',
+                                    'formulaid': 'B'}]},
                                acknowledge_operations=[{'operationtype': 1, 'evaltype': 0,
                                                         'opcommand_hst': [{'hostid': '0'}], 'opcommand_grp': [],
                                                         'opcommand': {
@@ -271,10 +326,10 @@ action_id = zapi.action.create(name=c.action_name, eventsource=0, status=0, esc_
                                                             'authtype': 0,
                                                             'username': '', 'password': '', 'publickey': '',
                                                             'privatekey': '',
-                                                            'command': '/opt/monitoring/zabbix-threat-control/ztc_fix.py {HOST.HOST} {TRIGGER.ID} {EVENT.ID}'}}])['actionids'][0]
+                                                            'command': '/opt/monitoring/zabbix-threat-control/ztc_fix.py {HOST.HOST} {TRIGGER.ID} {EVENT.ID}'}}])[
+    'actionids'][0]
 
 print('Created action "{}" (id: {})\n'.format(c.action_name, action_id))
-
 
 # DASHBOARD
 widgets = [{'type': 'problems', 'name': c.zbx_h_bulls_vname, 'x': '5', 'y': '9', 'width': '7', 'height': '9',
@@ -313,11 +368,11 @@ try:
     dash_id = zapi.dashboard.create(name=c.dash_name, widgets=widgets, userGroups=[], users=[], private=0)
     dash_id = dash_id['dashboardids'][0]
     print('Created dashboard "{dash_name}" (id: {dash_id})\n\n'
-          'Script "{stats_macros_value}" will be run every day at {start_hour}:30\n'
+          'Script "{stats_macros_value}" will be run every day at {time}\n'
           'via the item "Service item..." on the host "{zbx_h_stats_vname}".\n\n'
           'Dashboard URL:\n{zbx_url}/zabbix.php?action=dashboard.view&dashboardid={dash_id}&fullscreen=1\n'
           .format(dash_name=c.dash_name, dash_id=dash_id, stats_macros_value=c.stats_macros_value,
-                  start_hour=start_hour, zbx_h_stats_vname=c.zbx_h_stats_vname, zbx_url=c.zbx_url))
+                  time=ztc_start_time.strftime('%H:%M'), zbx_h_stats_vname=c.zbx_h_stats_vname, zbx_url=c.zbx_url))
 except Exception as e:
     print('Can\'t create dashboard "{}". Exception: {}'.format(c.dash_name, e))
     exit(1)

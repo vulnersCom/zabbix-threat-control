@@ -54,11 +54,17 @@ This can be done directly from Zabbix (using its standard functionality) either 
 
 ## Requirements
 
+**On zabbix-server host:**
+
 - python 3 (only for ztc scripts)
 - python modules: pyzabbix, jpath, requests
 - zabbix version 3.4 is required to create a custom dashboard and a custom polling schedule.
-- zabbix-agent for collect data and run scripts.
 - zabbix-sender utility for sending data to zabbix-server.
+- zabbix-get utility for sending a command to fix vulnerabilities on the server.
+
+**On all the servers that require a vulnerability scan:**
+
+- zabbix-agent for collect data and run scripts.
 
 ## Installation
 
@@ -149,20 +155,41 @@ vuln_api_key = 'RGB9YPJG7CFAXP35PMDVYFFJPGZ9ZIRO1VGO9K9269B0K86K6XQQQR32O6007NUK
 1. To create all the necessary objects in Zabbix, run the `/opt/monitoring/zabbix-threat-control/ztc_create.py` script. It will create the following objects using Zabbix API:
    * **A template** used to collect data from servers.
    * **Zabbix hosts** for obtaining data on vulnerabilities.
+   * **An action** for run the command fixes the vulnerability.
    * **A dashboard** for displaying results.
 2. Using the Zabbix web interface, it is necessary to link the "Vulners OS-Report" template with the hosts that you are doing a vulnerabilities scan on.
 
+### Servers that require a vulnerability scan
+
+Zabbix-agent must be able to execute remote commands. To do this, change the parameters in the zabbix-agent configuration file `/etc/zabbix/zabbix_agentd.conf`:
+
+```
+EnableRemoteCommands=1
+LogRemoteCommands=1
+``` 
+
+Zabbix-agent must be able to update packages as root. To do this, add a line to the file `/etc/sudoers`:
+
+```
+zabbix ALL=(ALL) NOPASSWD: /usr/bin/yum -y update *
+zabbix ALL=(ALL) NOPASSWD: /usr/bin/apt-get --assume-yes install --only-upgrade *
+```
 
 ## Execution
 
-- `/opt/monitoring/os-report/report.py` transfers the name, version and installed packages of the operating system to Zabbix.<br />
+- `/opt/monitoring/os-report/report.py`<br />
+  Script transfers the name, version and installed packages of the operating system to Zabbix.<br />
   Runs with zabbix-agent on all hosts to which the template "Vulners OS-Report" is linked.
 
-- `/opt/monitoring/zabbix-threat-control/ztc.py` processes raw data from zabbix and vulners and push them to the monitoring system using zabbix-sender.<br />
+- `/opt/monitoring/zabbix-threat-control/ztc.py`<br />
+  Script processes raw data from zabbix and vulners and push them to the monitoring system using zabbix-sender.<br />
   Runs with zabbix-agent on the Zabbix server via the item "Service item" on the host "Vulners - Statistics".
 
-To run these scripts, you should allow to execute the remote commands from the Zabbix server (`EnableRemoteCommands = 1` parameter in the zabbix-agent configuration file).<br />
-Scripts are run once a day. The start-up time is selected randomly during the installation and does not change during operation.
+These 2 scripts above are run once a day. The start-up time is selected randomly during the installation and does not change during operation.
+  
+- `/opt/monitoring/zabbix-threat-control/ztc_fix.py`<br />
+  Script runs commands to fix vulnerabilities on servers. Executed as a remote command in the action "Vunlers" in Zabbix. 
+   
 
 ## Usage
 It will be ready soon...
