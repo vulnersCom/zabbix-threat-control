@@ -34,10 +34,12 @@ required_zapi_ver = 3.4
 def check_zutils(check_type, host_conn):
     if check_type == 'agent':
         check_key = 'CheckRemoteCommand'
-        cmd = 'zabbix_get -s {host_conn} -k  system.run["echo {check_key}"]'.format(host_conn=host_conn, check_key=check_key)
+        cmd = 'zabbix_get -s {host_conn} -k  system.run["echo {check_key}"]'.format(host_conn=host_conn,
+                                                                                    check_key=check_key)
     elif check_type == 'server':
         check_key = '"response":"success"'
-        cmd = 'zabbix_sender -z {host_conn} -p {port} -s zabbix_sender_ztc_test -k zabbix_sender_ztc_test -o 1 -vv'.format(host_conn=host_conn, port=c.zbx_server_port, check_key=check_key)
+        cmd = 'zabbix_sender -z {host_conn} -p {port} -s zabbix_sender_ztc_test -k zabbix_sender_ztc_test -o 1 -vv'.format(
+            host_conn=host_conn, port=c.zbx_server_port, check_key=check_key)
     else:
         return False, 1, 1
 
@@ -63,7 +65,7 @@ def z_host_create(zbx_host, zbx_vname, group_id, appl_name, lld_name, lld_key, i
 
     try:
         host_id = zapi.host.create(host=zbx_host, name=zbx_vname, groups=[{'groupid': group_id}],
-                                   macros=[{'macro': '{$SCORE.MIN}', 'value': 8}],
+                                   macros=[{'macro': '{$SCORE.MIN}', 'value': 1}],
                                    interfaces=[
                                        {'type': 1, 'main': 1, 'useip': host_use_ip, 'ip': '127.0.0.1',
                                         'dns': c.zbx_server_fqdn, 'port': '10050'}])['hostids'][0]
@@ -101,7 +103,6 @@ except Exception as e:
     print('Error: Can\'t connect to Zabbix API. Exception: {}'.format(e))
     exit(1)
 
-
 host_use_ip = 1
 print('Checking the connection to the zabbix-agent...')
 
@@ -118,16 +119,14 @@ else:
               'Command: {}\n{}\nPlease fix this for continue!'.format(za_out[3], za_out[1]))
         exit(1)
 
-
 print('Checking the connection to the zabbix-server via zabbix_sender...')
 zs_out = check_zutils('server', c.zbx_server_fqdn)
 if zs_out[0] is True:
-    print('Сompleted successfully.\n')
+    print('Сompleted successfully. For connecting with zabbix-server used address "{}"\n'.format(c.zbx_server_fqdn))
 else:
     print('Error: Can\'t send data with zabbix-sender:\n'
           'Command: {}\n{}\n\nPlease fix this for continue!'.format(zs_out[3], zs_out[1]))
     exit(1)
-
 
 # HOSTGROUP
 try:
@@ -150,7 +149,6 @@ try:
     print('Template "{}" (id: {}) was renamed to "{}"'.format(c.tmpl_name, tmpl_id, bkp_tmpl_name))
 except Exception:
     tmpl_id = None
-
 
 try:
     tmpl_id = zapi.template.create(groups={'groupid': 1},
@@ -217,8 +215,8 @@ pkgs_id = z_host_create(zbx_host=c.zbx_h_pkgs,
                         trig_proto_comm='Vulnerabilities are found on:\r\n\r\n{#PKG.HOSTS}\r\n----\r\n{#PKG.FIX}')
 
 # STATISTIC
-g1_name = 'CVSS Score - Median'
-g2_name = 'CVSS Score on hosts'
+g1_name = 'Median CVSS Score'
+g2_name = 'CVSS Score ratio by servers'
 colors = ['DD0000', 'EE0000', 'FF3333', 'EEEE00', 'FFFF66', '00EEEE', '00DDDD', '3333FF', '6666FF', '00DD00', '33FF33']
 
 try:
@@ -227,10 +225,10 @@ try:
     bkp_h_stats = c.zbx_h_stats + '.bkp-' + timestamp
     bkp_h_stats_vname = c.zbx_h_stats_vname + '.bkp-' + timestamp
     zapi.host.update(hostid=host_id, host=bkp_h_stats, name=bkp_h_stats_vname, status=1)
-    print('Host "{}" (id: {}) was renamed to "{}" and deactivated'.format(c.zbx_h_stats_vname, host_id, bkp_h_stats_vname))
+    print('Host "{}" (id: {}) was renamed to "{}" and deactivated'.format(c.zbx_h_stats_vname, host_id,
+                                                                          bkp_h_stats_vname))
 except Exception:
     host_id = None
-
 
 try:
     host_id = zapi.host.create(host=c.zbx_h_stats, name=c.zbx_h_stats_vname, groups=[{'groupid': group_id}],
@@ -295,7 +293,7 @@ try:
         i += 1
 
     g2_id = zapi.graph.create({'hostids': host_id, 'name': g2_name, 'width': '1000', 'height': '300',
-                               'show_work_period': '0', 'graphtype': '1', 'show_legend': '1', 'show_3d': '0',
+                               'show_work_period': '0', 'graphtype': '2', 'show_legend': '0', 'show_3d': '1',
                                'gitems': gitems})['graphids'][0]
 
     print('Created host "{}" (id: {})\n'.format(c.zbx_h_stats_vname, host_id))
@@ -332,29 +330,29 @@ action_id = zapi.action.create(name=c.action_name, eventsource=0, status=0, esc_
 print('Created action "{}" (id: {})\n'.format(c.action_name, action_id))
 
 # DASHBOARD
-widgets = [{'type': 'problems', 'name': c.zbx_h_bulls_vname, 'x': '5', 'y': '9', 'width': '7', 'height': '9',
-            'fields': [{'type': '0', 'name': 'rf_rate', 'value': '600'}, {'type': '0', 'name': 'show', 'value': '3'},
-                       {'type': '0', 'name': 'show_lines', 'value': '100'},
-                       {'type': '0', 'name': 'sort_triggers', 'value': '16'},
-                       {'type': '3', 'name': 'hostids', 'value': bulls_id}]},
-           {'type': 'problems', 'name': c.zbx_h_pkgs_vname, 'x': '5', 'y': '0', 'width': '7', 'height': '9',
-            'fields': [{'type': '0', 'name': 'rf_rate', 'value': '600'},
-                       {'type': '0', 'name': 'show', 'value': '3'},
-                       {'type': '0', 'name': 'show_lines', 'value': '100'},
-                       {'type': '0', 'name': 'sort_triggers', 'value': '16'},
-                       {'type': '3', 'name': 'hostids', 'value': pkgs_id}]},
-           {'type': 'problems', 'name': c.zbx_h_hosts_vname, 'x': '0', 'y': '9', 'width': '5', 'height': '9',
-            'fields': [{'type': '0', 'name': 'rf_rate', 'value': '600'},
-                       {'type': '0', 'name': 'show', 'value': '3'},
-                       {'type': '0', 'name': 'show_lines', 'value': '100'},
-                       {'type': '0', 'name': 'sort_triggers', 'value': '16'},
-                       {'type': '3', 'name': 'hostids', 'value': hosts_id}]},
-           {'type': 'graph', 'name': g1_name, 'x': '0', 'y': '5', 'width': '5', 'height': '4',
-            'fields': [{'type': '0', 'name': 'rf_rate', 'value': '600'},
-                       {'type': '6', 'name': 'graphid', 'value': g1_id}]},
-           {'type': 'graph', 'name': g2_name, 'x': '0', 'y': '0', 'width': '5', 'height': '5',
-            'fields': [{'type': '0', 'name': 'rf_rate', 'value': '600'},
-                       {'type': '6', 'name': 'graphid', 'value': g2_id}]}]
+w = [{'type': 'problems', 'name': c.zbx_h_bulls_vname, 'x': '5', 'y': '7', 'width': '7', 'height': '8',
+      'fields': [{'type': '0', 'name': 'rf_rate', 'value': '900'}, {'type': '0', 'name': 'show', 'value': '3'},
+                 {'type': '0', 'name': 'show_lines', 'value': '100'},
+                 {'type': '0', 'name': 'sort_triggers', 'value': '16'},
+                 {'type': '3', 'name': 'hostids', 'value': bulls_id}]},
+     {'type': 'problems', 'name': c.zbx_h_pkgs_vname, 'x': '5', 'y': '0', 'width': '7',
+      'height': '7',
+      'fields': [{'type': '0', 'name': 'rf_rate', 'value': '600'}, {'type': '0', 'name': 'show', 'value': '3'},
+                 {'type': '0', 'name': 'show_lines', 'value': '100'},
+                 {'type': '0', 'name': 'sort_triggers', 'value': '16'},
+                 {'type': '3', 'name': 'hostids', 'value': pkgs_id}]},
+     {'type': 'problems', 'name': c.zbx_h_hosts_vname, 'x': '0', 'y': '7', 'width': '5',
+      'height': '8',
+      'fields': [{'type': '0', 'name': 'rf_rate', 'value': '600'}, {'type': '0', 'name': 'show', 'value': '3'},
+                 {'type': '0', 'name': 'show_lines', 'value': '100'},
+                 {'type': '0', 'name': 'sort_triggers', 'value': '16'},
+                 {'type': '3', 'name': 'hostids', 'value': hosts_id}]},
+     {'type': 'graph', 'name': g1_name, 'x': '2', 'y': '0', 'width': '3', 'height': '7',
+      'fields': [{'type': '0', 'name': 'rf_rate', 'value': '600'}, {'type': '0', 'name': 'show_legend', 'value': '0'},
+                 {'type': '6', 'name': 'graphid', 'value': g1_id}]},
+     {'type': 'graph', 'name': g2_name, 'x': '0', 'y': '0', 'width': '2', 'height': '7',
+      'fields': [{'type': '0', 'name': 'rf_rate', 'value': '600'}, {'type': '0', 'name': 'show_legend', 'value': '0'},
+                 {'type': '6', 'name': 'graphid', 'value': g2_id}]}]
 
 try:
     dash_id = zapi.dashboard.get(filter={'name': c.dash_name}, output=['dashboardid'])[0]['dashboardid']
@@ -365,7 +363,7 @@ except Exception:
     dash_id = None
 
 try:
-    dash_id = zapi.dashboard.create(name=c.dash_name, widgets=widgets, userGroups=[], users=[], private=0)
+    dash_id = zapi.dashboard.create(name=c.dash_name, widgets=w, userGroups=[], users=[], private=0)
     dash_id = dash_id['dashboardids'][0]
     print('Created dashboard "{dash_name}" (id: {dash_id})\n\n'
           'Script "{stats_macros_value}" will be run every day at {time}\n'
