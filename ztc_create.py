@@ -289,7 +289,7 @@ try:
     gitems = list()
     i = 0
     for graph in g2_itemids:
-        gitems.append({'itemid': graph, 'color': colors[i], 'drawtype': '5'})
+        gitems.append({'itemid': graph, 'color': colors[i], 'drawtype': '5', 'calc_fnc': '9'})
         i += 1
 
     g2_id = zapi.graph.create({'hostids': host_id, 'name': g2_name, 'width': '1000', 'height': '300',
