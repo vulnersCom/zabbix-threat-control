@@ -11,15 +11,62 @@ Script will create these objects in Zabbix using the API:
 """
 
 __author__ = 'samosvat'
-__version__ = '0.3.2'
+__version__ = '0.3.3'
 
+import configparser
+import subprocess
 from datetime import datetime, timedelta
 from random import randint
-import subprocess
 
 from pyzabbix import ZabbixAPI
 
-import ztc_config as c
+
+config = configparser.ConfigParser()
+config.read('ztc.conf')
+
+zbx_user = config['ZABBIX']['login']
+zbx_pass = config['ZABBIX']['password']
+zbx_url = config['ZABBIX']['fronturl']
+zbx_verify_ssl = config['ZABBIX'].getboolean('VerifySSL', False)
+zbx_server_fqdn = config['ZABBIX']['ServerFQDN']
+zbx_server_port = config['ZABBIX'].getint('ServerPort', 10051)
+
+use_zbx_agent_to_fix = config['FIX'].getboolean('Usezabbixagent', True)
+acknowledge_user_lst = config['FIX']['trustedzabbixuser'].split(',')
+ssh_user = config['FIX']['sshuser']
+
+log_file = config['FILES']['logfile']
+zsender_lld_file = config['FILES']['DiscoveryFile']
+zsender_data_file = config['FILES']['DataFile']
+h_matrix_dumpfile = config['FILES']['MatrixDumpFile']
+
+group_name = config['NAMES']['GroupName']
+appl_name = config['NAMES']['HostsAppliactionName']
+
+zbx_h_hosts = config['NAMES']['HostsHost']
+zbx_h_hosts_vname = config['NAMES']['HostsVisibleName']
+
+zbx_h_bulls = config['NAMES']['BulletinsHost']
+zbx_h_bulls_vname = config['NAMES']['BulletinsVisibleName']
+
+zbx_h_pkgs = config['NAMES']['PackagesHost']
+zbx_h_pkgs_vname = config['NAMES']['PackagesVisibleName']
+
+zbx_h_stats = config['NAMES']['StatisticsHost']
+zbx_h_stats_vname = config['NAMES']['StatisticsVisibleName']
+
+stats_macros_name = config['NAMES']['StatisticsMacrosName']
+stats_macros_value = config['NAMES']['StatisticsMacrosValue']
+
+dash_name = config['NAMES']['DashboardName']
+action_name = config['NAMES']['ActionName']
+
+tmpl_host = config['NAMES']['TemplateHost']
+tmpl_name = config['NAMES']['TemplateVisibleName']
+tmpl_macros_name = config['NAMES']['TemplateMacrosName']
+tmpl_macros_value = config['NAMES']['TemplateMacrosValue']
+tmpl_appl_name = config['NAMES']['TemplateAppliactionName']
+
 
 timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
@@ -39,7 +86,7 @@ def check_zutils(check_type, host_conn):
     elif check_type == 'server':
         check_key = '"response":"success"'
         cmd = 'zabbix_sender -z {host_conn} -p {port} -s zabbix_sender_ztc_test -k zabbix_sender_ztc_test -o 1 -vv'.format(
-            host_conn=host_conn, port=c.zbx_server_port, check_key=check_key)
+            host_conn=host_conn, port=zbx_server_port, check_key=check_key)
     else:
         return False, 1, 1
 
@@ -68,7 +115,7 @@ def z_host_create(zbx_host, zbx_vname, group_id, appl_name, lld_name, lld_key, i
                                    macros=[{'macro': '{$SCORE.MIN}', 'value': 1}],
                                    interfaces=[
                                        {'type': 1, 'main': 1, 'useip': host_use_ip, 'ip': '127.0.0.1',
-                                        'dns': c.zbx_server_fqdn, 'port': '10050'}])['hostids'][0]
+                                        'dns': zbx_server_fqdn, 'port': '10050'}])['hostids'][0]
         appl_id = zapi.application.create(name=appl_name, hostid=host_id)['applicationids'][0]
         lld_id = zapi.discoveryrule.create(type=2, hostid=host_id, name=lld_name, key_=lld_key, value_type='4',
                                            trapper_hosts='', units='', lifetime='0')['itemids'][0]
@@ -80,7 +127,7 @@ def z_host_create(zbx_host, zbx_vname, group_id, appl_name, lld_name, lld_key, i
                                                    'port': ''})['itemids'][0]
         zapi.itemprototype.update(itemid=item_proto_id, applications=[appl_id])
         zapi.triggerprototype.create(hostid=host_id, ruleid=lld_id, expression=trig_proto_expr,
-                                     description=trig_proto_descr, url=trig_proto_url,
+                                     description=trig_proto_descr, url=trig_proto_url, manual_close=1,
                                      priority='0', comments=trig_proto_comm, status='0')
         print('Created host "{}" (id: {})\n'.format(zbx_vname, host_id))
         return host_id
@@ -90,9 +137,9 @@ def z_host_create(zbx_host, zbx_vname, group_id, appl_name, lld_name, lld_key, i
 
 
 try:
-    zapi = ZabbixAPI(c.zbx_url, timeout=5)
-    zapi.session.verify = c.zbx_verify_ssl_certs
-    zapi.login(c.zbx_user, c.zbx_pass)
+    zapi = ZabbixAPI(zbx_url, timeout=5)
+    zapi.session.verify = zbx_verify_ssl
+    zapi.login(zbx_user, zbx_pass)
     zapi_ver = zapi.api_version()
     print('Connected to Zabbix API v.{}\n'.format(zapi.api_version()))
     zapi_ver_float = float(zapi_ver.split('.')[0] + '.' + zapi_ver.split('.')[1])
@@ -111,18 +158,18 @@ if za_out[0] is True:
     print('Сompleted successfully. For connecting with zabbix-agent used address "127.0.0.1"\n')
 else:
     host_use_ip = 0
-    za_out = check_zutils('agent', c.zbx_server_fqdn)
+    za_out = check_zutils('agent', zbx_server_fqdn)
     if za_out[0] is True:
-        print('For connecting with zabbix-agent used address "{}"\n'.format(c.zbx_server_fqdn))
+        print('For connecting with zabbix-agent used address "{}"\n'.format(zbx_server_fqdn))
     else:
         print('Error: Can\'t execute remote command on zabbix-agent:\n'
               'Command: {}\n{}\nPlease fix this for continue!'.format(za_out[3], za_out[1]))
         exit(1)
 
 print('Checking the connection to the zabbix-server via zabbix_sender...')
-zs_out = check_zutils('server', c.zbx_server_fqdn)
+zs_out = check_zutils('server', zbx_server_fqdn)
 if zs_out[0] is True:
-    print('Сompleted successfully. For connecting with zabbix-server used address "{}"\n'.format(c.zbx_server_fqdn))
+    print('Сompleted successfully. For connecting with zabbix-server used address "{}"\n'.format(zbx_server_fqdn))
 else:
     print('Error: Can\'t send data with zabbix-sender:\n'
           'Command: {}\n{}\n\nPlease fix this for continue!'.format(zs_out[3], zs_out[1]))
@@ -130,31 +177,31 @@ else:
 
 # HOSTGROUP
 try:
-    group_id = zapi.hostgroup.get(filter={'name': c.group_name}, output=['groupid'])[0]['groupid']
-    print('Host group "{}" already exists (id: {}). Use this group.\n'.format(c.group_name, group_id))
+    group_id = zapi.hostgroup.get(filter={'name': group_name}, output=['groupid'])[0]['groupid']
+    print('Host group "{}" already exists (id: {}). Use this group.\n'.format(group_name, group_id))
 except IndexError:
-    group_id = zapi.hostgroup.create(name=c.group_name)['groupids'][0]
-    print('Created host group "{}" (id: {}).\n'.format(c.group_name, group_id))
+    group_id = zapi.hostgroup.create(name=group_name)['groupids'][0]
+    print('Created host group "{}" (id: {}).\n'.format(group_name, group_id))
 except Exception as e:
-    print('Can\'t create host group "{}". Exception: {}'.format(c.group_name, e))
+    print('Can\'t create host group "{}". Exception: {}'.format(group_name, e))
     exit(1)
 
 # TEMPLATE
 try:
-    tmpl_id = zapi.template.get(filter={'host': c.tmpl_host, 'name': c.tmpl_name},
+    tmpl_id = zapi.template.get(filter={'host': tmpl_host, 'name': tmpl_name},
                                 output=['templateid'])[0]['templateid']
-    bkp_tmpl_host = c.tmpl_host + '.bkp-' + timestamp
-    bkp_tmpl_name = c.tmpl_name + '.bkp-' + timestamp
+    bkp_tmpl_host = tmpl_host + '.bkp-' + timestamp
+    bkp_tmpl_name = tmpl_name + '.bkp-' + timestamp
     zapi.template.update(templateid=tmpl_id, host=bkp_tmpl_host, name=bkp_tmpl_name)
-    print('Template "{}" (id: {}) was renamed to "{}"'.format(c.tmpl_name, tmpl_id, bkp_tmpl_name))
+    print('Template "{}" (id: {}) was renamed to "{}"'.format(tmpl_name, tmpl_id, bkp_tmpl_name))
 except Exception:
     tmpl_id = None
 
 try:
     tmpl_id = zapi.template.create(groups={'groupid': 1},
-                                   macros=[{'macro': c.tmpl_macros_name, 'value': c.tmpl_macros_value}],
-                                   host=c.tmpl_host, name=c.tmpl_name)['templateids'][0]
-    tmpl_app_id = zapi.application.create(name=c.tmpl_appl_name, hostid=tmpl_id)['applicationids'][0]
+                                   macros=[{'macro': tmpl_macros_name, 'value': tmpl_macros_value}],
+                                   host=tmpl_host, name=tmpl_name)['templateids'][0]
+    tmpl_app_id = zapi.application.create(name=tmpl_appl_name, hostid=tmpl_id)['applicationids'][0]
 
     zapi.item.create(name='OS - Name', key_='system.run[{$REPORT_SCRIPT_PATH} os]', hostid=tmpl_id, type=0,
                      value_type=4, interfaceid='0', applications=[tmpl_app_id], delay=delay_report)
@@ -165,50 +212,53 @@ try:
     zapi.item.create(name='OS - Packages', key_='system.run[{$REPORT_SCRIPT_PATH} package]', hostid=tmpl_id, type=0,
                      value_type=4, interfaceid='0', applications=[tmpl_app_id], delay=delay_report)
 
-    print('Created template "{}" (id: {})\n'.format(c.tmpl_name, tmpl_id))
+    print('Created template "{}" (id: {})\n'.format(tmpl_name, tmpl_id))
 except Exception as e:
-    print('Can\'t create template "{}". Exception: {}'.format(c.tmpl_name, e))
+    print('Can\'t create template "{}". Exception: {}'.format(tmpl_name, e))
     exit(1)
 
 # HOSTS
-hosts_id = z_host_create(zbx_host=c.zbx_h_hosts,
-                         zbx_vname=c.zbx_h_hosts_vname,
+hosts_id = z_host_create(zbx_host=zbx_h_hosts,
+                         zbx_vname=zbx_h_hosts_vname,
                          group_id=group_id,
-                         appl_name=c.appl_name,
+                         appl_name=appl_name,
                          lld_name='Hosts',
                          lld_key='vulners.hosts_lld',
                          item_proto_name='CVSS Score on {#H.HOST} [{#H.VNAME}]',
                          item_proto_key='vulners.hosts[{#H.ID}]',
-                         trig_proto_expr='{' + c.zbx_h_hosts + ':vulners.hosts[{#H.ID}].last()}>0 and {#H.SCORE}>={$SCORE.MIN}',
+                         # trig_proto_expr='{' + zbx_h_hosts + ':vulners.hosts[{#H.ID}].last()}>0 and {#H.SCORE}>={$SCORE.MIN}',
+                         trig_proto_expr='{' + zbx_h_hosts + ':vulners.hosts[{#H.ID}].last()}>={$SCORE.MIN}',
                          trig_proto_descr='Score {#H.SCORE}. Host = {#H.VNAME}',
                          trig_proto_url='',
                          trig_proto_comm='Cumulative fix:\r\n\r\n{#H.FIX}')
 
 # BULLETINS
-bulls_id = z_host_create(zbx_host=c.zbx_h_bulls,
-                         zbx_vname=c.zbx_h_bulls_vname,
+bulls_id = z_host_create(zbx_host=zbx_h_bulls,
+                         zbx_vname=zbx_h_bulls_vname,
                          group_id=group_id,
-                         appl_name=c.appl_name,
+                         appl_name=appl_name,
                          lld_name='Bulletins',
                          lld_key='vulners.bulletins_lld',
                          item_proto_name='[{#BULLETIN.SCORE}] [{#BULLETIN.ID}] - affected hosts',
                          item_proto_key='vulners.bulletin[{#BULLETIN.ID}]',
-                         trig_proto_expr='{' + c.zbx_h_bulls + ':vulners.bulletin[{#BULLETIN.ID}].last()}>0 and {#BULLETIN.SCORE}>={$SCORE.MIN}',
+                         trig_proto_expr='{' + zbx_h_bulls + ':vulners.bulletin[{#BULLETIN.ID}].last()}>={$SCORE.MIN}',
+                         # trig_proto_expr='{' + zbx_h_bulls + ':vulners.bulletin[{#BULLETIN.ID}].last()}>0 and {#BULLETIN.SCORE}>={$SCORE.MIN}',
                          trig_proto_descr='Impact {#BULLETIN.IMPACT}. Score {#BULLETIN.SCORE}. Affected {ITEM.LASTVALUE}. Bulletin = {#BULLETIN.ID}',
                          # trig_proto_descr='Impact {#BULLETIN.IMPACT}. Score {#BULLETIN.SCORE}. Affected {#BULLETIN.AFFECTED}. Bulletin = {#BULLETIN.ID}',
                          trig_proto_url='https://vulners.com/info/{#BULLETIN.ID}',
                          trig_proto_comm='Vulnerabilities are found on:\r\n\r\n{#BULLETIN.HOSTS}')
 
 # PKGS
-pkgs_id = z_host_create(zbx_host=c.zbx_h_pkgs,
-                        zbx_vname=c.zbx_h_pkgs_vname,
+pkgs_id = z_host_create(zbx_host=zbx_h_pkgs,
+                        zbx_vname=zbx_h_pkgs_vname,
                         group_id=group_id,
-                        appl_name=c.appl_name,
+                        appl_name=appl_name,
                         lld_name='Packages',
                         lld_key='vulners.packages_lld',
                         item_proto_name='[{#PKG.SCORE}] [{#PKG.ID}] - affected hosts',
                         item_proto_key='vulners.pkg[{#PKG.ID}]',
-                        trig_proto_expr='{' + c.zbx_h_pkgs + ':vulners.pkg[{#PKG.ID}].last()}>0 and {#PKG.SCORE}>={$SCORE.MIN}',
+                        trig_proto_expr='{' + zbx_h_pkgs + ':vulners.pkg[{#PKG.ID}].last()}>={$SCORE.MIN}',
+                        # trig_proto_expr='{' + zbx_h_pkgs + ':vulners.pkg[{#PKG.ID}].last()}>0 and {#PKG.SCORE}>={$SCORE.MIN}',
                         trig_proto_descr='Impact {#PKG.IMPACT}. Score {#PKG.SCORE}. Affected {ITEM.LASTVALUE}. Package = {#PKG.ID}',
                         # trig_proto_descr='Impact {#PKG.IMPACT}. Score {#PKG.SCORE}. Affected {#PKG.AFFECTED}. Package = {#PKG.ID}',
                         trig_proto_url='https://vulners.com/info/{#PKG.URL}',
@@ -220,24 +270,24 @@ g2_name = 'CVSS Score ratio by servers'
 colors = ['DD0000', 'EE0000', 'FF3333', 'EEEE00', 'FFFF66', '00EEEE', '00DDDD', '3333FF', '6666FF', '00DD00', '33FF33']
 
 try:
-    host_id = zapi.host.get(filter={'host': c.zbx_h_stats, 'name': c.zbx_h_stats_vname},
+    host_id = zapi.host.get(filter={'host': zbx_h_stats, 'name': zbx_h_stats_vname},
                             output=['hostid'])[0]['hostid']
-    bkp_h_stats = c.zbx_h_stats + '.bkp-' + timestamp
-    bkp_h_stats_vname = c.zbx_h_stats_vname + '.bkp-' + timestamp
+    bkp_h_stats = zbx_h_stats + '.bkp-' + timestamp
+    bkp_h_stats_vname = zbx_h_stats_vname + '.bkp-' + timestamp
     zapi.host.update(hostid=host_id, host=bkp_h_stats, name=bkp_h_stats_vname, status=1)
-    print('Host "{}" (id: {}) was renamed to "{}" and deactivated'.format(c.zbx_h_stats_vname, host_id,
+    print('Host "{}" (id: {}) was renamed to "{}" and deactivated'.format(zbx_h_stats_vname, host_id,
                                                                           bkp_h_stats_vname))
 except Exception:
     host_id = None
 
 try:
-    host_id = zapi.host.create(host=c.zbx_h_stats, name=c.zbx_h_stats_vname, groups=[{'groupid': group_id}],
-                               macros=[{'macro': c.stats_macros_name, 'value': c.stats_macros_value}],
+    host_id = zapi.host.create(host=zbx_h_stats, name=zbx_h_stats_vname, groups=[{'groupid': group_id}],
+                               macros=[{'macro': stats_macros_name, 'value': stats_macros_value}],
                                interfaces=[
                                    {'type': 1, 'main': 1, 'useip': host_use_ip, 'ip': '127.0.0.1',
-                                    'dns': c.zbx_server_fqdn, 'port': '10050'}])['hostids'][0]
+                                    'dns': zbx_server_fqdn, 'port': '10050'}])['hostids'][0]
 
-    appl_id = zapi.application.create(name=c.appl_name, hostid=host_id)['applicationids'][0]
+    appl_id = zapi.application.create(name=appl_name, hostid=host_id)['applicationids'][0]
 
     iface_id = zapi.hostinterface.get(hostids=host_id, output='interfaceid')[0]['interfaceid']
 
@@ -296,20 +346,20 @@ try:
                                'show_work_period': '0', 'graphtype': '2', 'show_legend': '0', 'show_3d': '1',
                                'gitems': gitems})['graphids'][0]
 
-    print('Created host "{}" (id: {})\n'.format(c.zbx_h_stats_vname, host_id))
+    print('Created host "{}" (id: {})\n'.format(zbx_h_stats_vname, host_id))
 except Exception as e:
-    print('Can\'t create host "{}". Exception: {}'.format(c.zbx_h_stats_vname, e))
+    print('Can\'t create host "{}". Exception: {}'.format(zbx_h_stats_vname, e))
     exit(1)
 
 try:
-    action_id = zapi.action.get(filter={'name': c.action_name}, output=['actionid'])[0]['actionid']
-    bkp_action_name = c.zbx_h_stats + '.bkp-' + timestamp
+    action_id = zapi.action.get(filter={'name': action_name}, output=['actionid'])[0]['actionid']
+    bkp_action_name = zbx_h_stats + '.bkp-' + timestamp
     zapi.action.update(actionid=action_id, name=bkp_action_name, status=1)
-    print('Action "{}" (id: {}) was renamed to "{}" and deactivated.'.format(c.action_name, action_id, bkp_action_name))
+    print('Action "{}" (id: {}) was renamed to "{}" and deactivated.'.format(action_name, action_id, bkp_action_name))
 except Exception:
     action_id = None
 
-action_id = zapi.action.create(name=c.action_name, eventsource=0, status=0, esc_period=120,
+action_id = zapi.action.create(name=action_name, eventsource=0, status=0, esc_period=120,
                                def_shortdata='{TRIGGER.NAME}: {TRIGGER.STATUS}',
                                def_longdata='{TRIGGER.NAME}: {TRIGGER.STATUS}',
                                filter={'evaltype': 0, 'formula': '', 'conditions': [
@@ -327,21 +377,21 @@ action_id = zapi.action.create(name=c.action_name, eventsource=0, status=0, esc_
                                                             'command': '/opt/monitoring/zabbix-threat-control/ztc_fix.py {HOST.HOST} {TRIGGER.ID} {EVENT.ID}'}}])[
     'actionids'][0]
 
-print('Created action "{}" (id: {})\n'.format(c.action_name, action_id))
+print('Created action "{}" (id: {})\n'.format(action_name, action_id))
 
 # DASHBOARD
-w = [{'type': 'problems', 'name': c.zbx_h_bulls_vname, 'x': '5', 'y': '7', 'width': '7', 'height': '8',
+w = [{'type': 'problems', 'name': zbx_h_bulls_vname, 'x': '5', 'y': '7', 'width': '7', 'height': '8',
       'fields': [{'type': '0', 'name': 'rf_rate', 'value': '900'}, {'type': '0', 'name': 'show', 'value': '3'},
                  {'type': '0', 'name': 'show_lines', 'value': '100'},
                  {'type': '0', 'name': 'sort_triggers', 'value': '16'},
                  {'type': '3', 'name': 'hostids', 'value': bulls_id}]},
-     {'type': 'problems', 'name': c.zbx_h_pkgs_vname, 'x': '5', 'y': '0', 'width': '7',
+     {'type': 'problems', 'name': zbx_h_pkgs_vname, 'x': '5', 'y': '0', 'width': '7',
       'height': '7',
       'fields': [{'type': '0', 'name': 'rf_rate', 'value': '600'}, {'type': '0', 'name': 'show', 'value': '3'},
                  {'type': '0', 'name': 'show_lines', 'value': '100'},
                  {'type': '0', 'name': 'sort_triggers', 'value': '16'},
                  {'type': '3', 'name': 'hostids', 'value': pkgs_id}]},
-     {'type': 'problems', 'name': c.zbx_h_hosts_vname, 'x': '0', 'y': '7', 'width': '5',
+     {'type': 'problems', 'name': zbx_h_hosts_vname, 'x': '0', 'y': '7', 'width': '5',
       'height': '8',
       'fields': [{'type': '0', 'name': 'rf_rate', 'value': '600'}, {'type': '0', 'name': 'show', 'value': '3'},
                  {'type': '0', 'name': 'show_lines', 'value': '100'},
@@ -355,22 +405,22 @@ w = [{'type': 'problems', 'name': c.zbx_h_bulls_vname, 'x': '5', 'y': '7', 'widt
                  {'type': '6', 'name': 'graphid', 'value': g2_id}]}]
 
 try:
-    dash_id = zapi.dashboard.get(filter={'name': c.dash_name}, output=['dashboardid'])[0]['dashboardid']
-    bkp_dash_name = c.dash_name + '_bkp_' + timestamp
+    dash_id = zapi.dashboard.get(filter={'name': dash_name}, output=['dashboardid'])[0]['dashboardid']
+    bkp_dash_name = dash_name + '_bkp_' + timestamp
     zapi.dashboard.update(dashboardid=dash_id, name=bkp_dash_name)
-    print('Dashboard {} (id: {}) was renamed to {}'.format(c.dash_name, dash_id, bkp_dash_name))
+    print('Dashboard {} (id: {}) was renamed to {}'.format(dash_name, dash_id, bkp_dash_name))
 except Exception:
     dash_id = None
 
 try:
-    dash_id = zapi.dashboard.create(name=c.dash_name, widgets=w, userGroups=[], users=[], private=0)
+    dash_id = zapi.dashboard.create(name=dash_name, widgets=w, userGroups=[], users=[], private=0)
     dash_id = dash_id['dashboardids'][0]
     print('Created dashboard "{dash_name}" (id: {dash_id})\n\n'
           'Script "{stats_macros_value}" will be run every day at {time}\n'
           'via the item "Service item..." on the host "{zbx_h_stats_vname}".\n\n'
           'Dashboard URL:\n{zbx_url}/zabbix.php?action=dashboard.view&dashboardid={dash_id}&fullscreen=1\n'
-          .format(dash_name=c.dash_name, dash_id=dash_id, stats_macros_value=c.stats_macros_value,
-                  time=ztc_start_time.strftime('%H:%M'), zbx_h_stats_vname=c.zbx_h_stats_vname, zbx_url=c.zbx_url))
+          .format(dash_name=dash_name, dash_id=dash_id, stats_macros_value=stats_macros_value,
+                  time=ztc_start_time.strftime('%H:%M'), zbx_h_stats_vname=zbx_h_stats_vname, zbx_url=zbx_url))
 except Exception as e:
-    print('Can\'t create dashboard "{}". Exception: {}'.format(c.dash_name, e))
+    print('Can\'t create dashboard "{}". Exception: {}'.format(dash_name, e))
     exit(1)
