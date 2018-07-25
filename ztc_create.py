@@ -248,11 +248,11 @@ try:
     zapi.item.create({'name': 'CVSS Score - Total hosts', 'key_': 'vulners.hostsCount', 'hostid': host_id,
                       'type': '2', 'value_type': '3', 'trapper_hosts': '', 'applications': [appl_id]},
                      {'name': 'CVSS Score - Maximum', 'key_': 'vulners.scoreMax', 'hostid': host_id,
-                      'type': '2', 'value_type': '3', 'trapper_hosts': '', 'applications': [appl_id]},
+                      'type': '2', 'value_type': '0', 'trapper_hosts': '', 'applications': [appl_id]},
                      {'name': 'CVSS Score - Average', 'key_': 'vulners.scoreMean', 'hostid': host_id,
                       'type': '2', 'value_type': '0', 'trapper_hosts': '', 'applications': [appl_id]},
                      {'name': 'CVSS Score - Minimum', 'key_': 'vulners.scoreMin', 'hostid': host_id,
-                      'type': '2', 'value_type': '3', 'trapper_hosts': '', 'applications': [appl_id]})
+                      'type': '2', 'value_type': '0', 'trapper_hosts': '', 'applications': [appl_id]})
 
     g1_itemid = zapi.item.create({'name': 'CVSS Score - Median', 'key_': 'vulners.scoreMedian', 'hostid': host_id,
                                   'type': '2', 'value_type': '0', 'trapper_hosts': '', 'applications': [appl_id]})[
