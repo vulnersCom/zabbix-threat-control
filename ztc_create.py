@@ -151,7 +151,8 @@ except Exception:
     tmpl_id = None
 
 try:
-    tmpl_id = zapi.template.create(groups={'groupid': 1},
+    tmpl_groupid = zapi.hostgroup.get(filter={'name':"Templates"}, output=['groupid'])[0]['groupid']
+    tmpl_id = zapi.template.create(groups={'groupid': tmpl_groupid},
                                    macros=[{'macro': c.tmpl_macros_name, 'value': c.tmpl_macros_value}],
                                    host=c.tmpl_host, name=c.tmpl_name)['templateids'][0]
     tmpl_app_id = zapi.application.create(name=c.tmpl_appl_name, hostid=tmpl_id)['applicationids'][0]
