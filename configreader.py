@@ -27,7 +27,6 @@ ssh_user = config.get('OPTIONAL', 'SSHUser', fallback='root')
 log_file = config.get('OPTIONAL', 'logfile', fallback='/var/log/zabbix-threat-control.log')
 work_dir = config.get('OPTIONAL', 'WorkDir', fallback='/opt/monitoring/zabbix-threat-control').rstrip('/')
 
-group_name = config.get('OPTIONAL', 'HostGroupName', fallback='Vulners')
 appl_name = config.get('OPTIONAL', 'HostsApplicationName', fallback='Vulnerabilities')
 
 dash_name = config.get('OPTIONAL', 'DashboardName', fallback='Vulners')
@@ -55,3 +54,9 @@ tmpl_macros_name = config.get('OPTIONAL', 'TemplateMacrosName', fallback='{$REPO
 tmpl_macros_value = config.get('OPTIONAL', 'TemplateMacrosValue', fallback='/opt/monitoring/os-report/report.py')
 
 tmpl_appl_name = config.get('OPTIONAL', 'TemplateApplicationName', fallback='Vulners OS Report')
+
+group_name = config.get('OPTIONAL', 'HostGroupName', fallback='Vulners')
+tmpl_group_name = config.get('OPTIONAL', 'TemplateGroupName', fallback='Templates')
+
+z_sender_bin = config.get('OPTIONAL', 'ZabbixSender', fallback='zabbix_sender')
+z_get_bin = config.get('OPTIONAL', 'ZabbixGet', fallback='zabbix_get')

@@ -44,7 +44,7 @@ def do_fix(vname, fix_cmd):
             h_conn = h_if['dns']
 
         if use_zbx_agent_to_fix:
-            cmd = 'zabbix_get -s {} -k "system.run[{},nowait]"'.format(h_conn, fix_cmd)
+            cmd = '{z_get_bin} -s {h_conn} -k "system.run[{fix_cmd},nowait]"'.format(z_get_bin=z_get_bin, h_conn=h_conn, fix_cmd=fix_cmd)
         else:
             cmd = 'ssh {} -l {} "{}"'.format(h_conn, ssh_user, fix_cmd)
 
