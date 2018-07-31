@@ -60,3 +60,5 @@ tmpl_group_name = config.get('OPTIONAL', 'TemplateGroupName', fallback='Template
 
 z_sender_bin = config.get('OPTIONAL', 'ZabbixSender', fallback='zabbix_sender')
 z_get_bin = config.get('OPTIONAL', 'ZabbixGet', fallback='zabbix_get')
+
+python_modules = config.get('OPTIONAL', 'PythonModules', fallback='pyzabbix,vulners').split(',')
