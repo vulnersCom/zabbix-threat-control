@@ -11,61 +11,29 @@ Script will create these objects in Zabbix using the API:
 """
 
 __author__ = 'samosvat'
-__version__ = '0.3.3'
+__version__ = '1.3.3'
 
-import configparser
+
+import argparse
 import subprocess
 from datetime import datetime, timedelta
 from random import randint
 
 from pyzabbix import ZabbixAPI
 
+from configreader import *
 
-config = configparser.ConfigParser()
-config.read('ztc.conf')
 
-zbx_user = config['ZABBIX']['login']
-zbx_pass = config['ZABBIX']['password']
-zbx_url = config['ZABBIX']['fronturl']
-zbx_verify_ssl = config['ZABBIX'].getboolean('VerifySSL', False)
-zbx_server_fqdn = config['ZABBIX']['ServerFQDN']
-zbx_server_port = config['ZABBIX'].getint('ServerPort', 10051)
+parser = argparse.ArgumentParser(description='Vulners to zabbix integration tool')
 
-use_zbx_agent_to_fix = config['FIX'].getboolean('Usezabbixagent', True)
-acknowledge_user_lst = config['FIX']['trustedzabbixuser'].split(',')
-ssh_user = config['FIX']['sshuser']
 
-log_file = config['FILES']['logfile']
-zsender_lld_file = config['FILES']['DiscoveryFile']
-zsender_data_file = config['FILES']['DataFile']
-h_matrix_dumpfile = config['FILES']['MatrixDumpFile']
+parser.add_argument(
+    '--noutils',
+    help='Bypass zabbix utils checking.',
+    action='store_true')
 
-group_name = config['NAMES']['GroupName']
-appl_name = config['NAMES']['HostsAppliactionName']
 
-zbx_h_hosts = config['NAMES']['HostsHost']
-zbx_h_hosts_vname = config['NAMES']['HostsVisibleName']
-
-zbx_h_bulls = config['NAMES']['BulletinsHost']
-zbx_h_bulls_vname = config['NAMES']['BulletinsVisibleName']
-
-zbx_h_pkgs = config['NAMES']['PackagesHost']
-zbx_h_pkgs_vname = config['NAMES']['PackagesVisibleName']
-
-zbx_h_stats = config['NAMES']['StatisticsHost']
-zbx_h_stats_vname = config['NAMES']['StatisticsVisibleName']
-
-stats_macros_name = config['NAMES']['StatisticsMacrosName']
-stats_macros_value = config['NAMES']['StatisticsMacrosValue']
-
-dash_name = config['NAMES']['DashboardName']
-action_name = config['NAMES']['ActionName']
-
-tmpl_host = config['NAMES']['TemplateHost']
-tmpl_name = config['NAMES']['TemplateVisibleName']
-tmpl_macros_name = config['NAMES']['TemplateMacrosName']
-tmpl_macros_value = config['NAMES']['TemplateMacrosValue']
-tmpl_appl_name = config['NAMES']['TemplateAppliactionName']
+args = parser.parse_args()
 
 
 timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
@@ -79,6 +47,9 @@ required_zapi_ver = 3.4
 
 
 def check_zutils(check_type, host_conn):
+    if args.noutils:
+        return True, 1, 1, 1
+
     if check_type == 'agent':
         check_key = 'CheckRemoteCommand'
         cmd = 'zabbix_get -s {host_conn} -k  system.run["echo {check_key}"]'.format(host_conn=host_conn,
