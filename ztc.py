@@ -3,10 +3,9 @@
 """Zabbix vulnerability assessment plugin."""
 
 __author__ = 'samosvat'
-__version__ = '0.3.3'
+__version__ = '1.3.3'
 
 import argparse
-import configparser
 import json
 import logging
 import os
@@ -22,37 +21,15 @@ from pyzabbix import ZabbixAPI
 
 import requests
 
-
-config = configparser.ConfigParser()
-config.read('ztc.conf')
-
-vuln_api_key = config['VULNERS']['ApiKey']
-
-zbx_user = config['ZABBIX']['login']
-zbx_pass = config['ZABBIX']['password']
-zbx_url = config['ZABBIX']['fronturl']
-zbx_verify_ssl = config['ZABBIX'].getboolean('VerifySSL', False)
-zbx_server_fqdn = config['ZABBIX']['ServerFQDN']
-zbx_server_port = config['ZABBIX'].getint('ServerPort', 10051)
-
-log_file = config['FILES']['logfile']
-zsender_lld_file = config['FILES']['DiscoveryFile']
-zsender_data_file = config['FILES']['DataFile']
-h_matrix_dumpfile = config['FILES']['MatrixDumpFile']
-
-zbx_h_hosts = config['NAMES']['HostsHost']
-zbx_h_bulls = config['NAMES']['BulletinsHost']
-zbx_h_pkgs = config['NAMES']['PackagesHost']
-zbx_h_stats = config['NAMES']['StatisticsHost']
-tmpl_host = config['NAMES']['TemplateHost']
-
-tmpl_macros_name = config['NAMES']['TemplateMacrosName']
-tmpl_macros_value = config['NAMES']['TemplateMacrosValue']
+from configreader import *
 
 
 vulners_url = 'https://vulners.com/api/v3/audit/audit/'
 jpath_mask = 'data.packages.*.*.*'
 
+zsender_lld_file = work_dir + 'lld.zbx'
+zsender_data_file = work_dir + 'data.zbx'
+h_matrix_dumpfile = work_dir + 'dump.bin'
 
 parser = argparse.ArgumentParser(description='Vulners to zabbix integration tool')
 
