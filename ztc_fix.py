@@ -19,7 +19,7 @@ import sys
 
 from pyzabbix import ZabbixAPI
 
-from configreader import *
+from readconfig import *
 
 
 def shell(command):

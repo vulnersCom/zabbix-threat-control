@@ -21,7 +21,7 @@ from pyzabbix import ZabbixAPI
 
 import requests
 
-from configreader import *
+from readconfig import *
 
 
 vulners_url = 'https://vulners.com/api/v3/audit/audit/'
