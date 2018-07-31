@@ -10,7 +10,7 @@ ztc_fix.py {HOST.HOST} {TRIGGER.ID} {EVENT.ID}
 
 
 __author__ = 'samosvat'
-__version__ = '0.3.2'
+__version__ = '1.3.3'
 
 
 import logging
@@ -19,14 +19,7 @@ import sys
 
 from pyzabbix import ZabbixAPI
 
-import ztc_config as c
-
-
-logging.basicConfig(
-    # level=logging.DEBUG,
-    level=logging.INFO,
-    filename=c.log_file,
-    format='%(asctime)s  %(process)d  %(levelname)s  %(message)s  [%(filename)s:%(lineno)d]')
+from configreader import *
 
 
 def shell(command):
@@ -50,10 +43,10 @@ def do_fix(vname, fix_cmd):
         else:
             h_conn = h_if['dns']
 
-        if c.use_zbx_agent_to_fix:
-            cmd = 'zabbix_get -s {} -k "system.run[{},nowait]"'.format(h_conn, fix_cmd)
+        if use_zbx_agent_to_fix:
+            cmd = '{z_get_bin} -s {h_conn} -k "system.run[{fix_cmd},nowait]"'.format(z_get_bin=z_get_bin, h_conn=h_conn, fix_cmd=fix_cmd)
         else:
-            cmd = 'ssh {} -l {} "{}"'.format(h_conn, c.ssh_user, fix_cmd)
+            cmd = 'ssh {} -l {} "{}"'.format(h_conn, ssh_user, fix_cmd)
 
         logging.info(cmd)
         out = shell(cmd)
@@ -64,30 +57,36 @@ def do_fix(vname, fix_cmd):
         return False
 
 
+logging.basicConfig(
+    # level=logging.DEBUG,
+    level=logging.INFO,
+    filename=log_file,
+    format='%(asctime)s  %(process)d  %(levelname)s  %(message)s  [%(filename)s:%(lineno)d]')
+
 triggered_host = sys.argv[1]
 trigger_id = sys.argv[2]
 event_id = sys.argv[3]
 
-
 logging.info('Getting Started with the event: {}/tr_events.php?triggerid={}&eventid={}'
-             .format(c.zbx_url, trigger_id, event_id))
+             .format(zbx_url, trigger_id, event_id))
 
 
 try:
-    zapi = ZabbixAPI(c.zbx_url, timeout=10)
-    zapi.session.verify = c.zbx_verify_ssl_certs
-    zapi.login(c.zbx_user, c.zbx_pass)
+    zapi = ZabbixAPI(zbx_url, timeout=10)
+    zapi.session.verify = zbx_verify_ssl
+    zapi.login(zbx_user, zbx_pass)
     logging.info('Connected to Zabbix API v.{}'.format(zapi.api_version()))
 except Exception as e:
     logging.info('Error: Can\'t connect to Zabbix API. Exception: {}'.format(e))
     exit(1)
 
 
+# todo: добавить обработку "закытие события, без выполнения действия"
 try:
     ack = zapi.event.get(eventids=event_id, select_acknowledges=['alias', 'message'], output=['alias', 'message'])
     ack_alias = ack[0]['acknowledges'][0]['alias']
-    if ack_alias != c.acknowledge_user:
-        logging.info('Not trusted user in acknowledge: {}.\nSkipping this request to fix.'.format(ack_alias))
+    if ack_alias not in acknowledge_users:
+        logging.info('Not trusted user in acknowledge: {}. Skipping this request to fix.'.format(ack_alias))
         exit(0)
     tg = zapi.trigger.get(triggerids=trigger_id, output='extend')[0]
 except Exception as e:
@@ -97,13 +96,19 @@ except Exception as e:
 
 tg_desc = tg['description']
 tg_comm = tg['comments']
+tg_manual_close = tg['manual_close']
+
+if tg_manual_close == '1':
+    logging.info('The \"{}\" trigger was manually closed by the \"{}\" user. No further action required'
+                 .format(tg_desc, ack_alias))
+    exit(0)
 
 
-if triggered_host == c.zbx_h_hosts:
+if triggered_host == zbx_h_hosts:
     h_name = tg_desc[tg_desc.rfind(' = ') + 3:]
     fix = tg_comm[tg_comm.rfind('\r\n\r\n') + 4:]
     do_fix(h_name, fix)
-elif triggered_host == c.zbx_h_pkgs:
+elif triggered_host == zbx_h_pkgs:
     pkg_name = tg_desc[tg_desc.rfind(' = ') + 3:].split()[0]
     tg_comm_tmp = tg_comm[tg_comm.rfind('\r\n\r\n') + 4:].split('\r\n----\r\n')
     hosts = tg_comm_tmp[0].splitlines()
@@ -116,8 +121,6 @@ elif triggered_host == c.zbx_h_pkgs:
         do_fix(h_name, fix)
 else:
     logging.info('Host {} that triggered the trigger does not match the required: {} or {}'
-                 .format(triggered_host, c.zbx_h_pkgs, c.zbx_h_hosts))
-
-# todo: Добавить в акновледж к событию информацию с результатом выполнения команды (успех/неуспех)
+                 .format(triggered_host, zbx_h_pkgs, zbx_h_hosts))
 
 logging.info('End')
