@@ -10,15 +10,16 @@ ztc_fix.py {HOST.HOST} {TRIGGER.ID} {EVENT.ID}
 
 
 __author__ = 'samosvat'
-__version__ = '0.3.3'
+__version__ = '1.3.3'
 
 
-import configparser
 import logging
 import subprocess
 import sys
 
 from pyzabbix import ZabbixAPI
+
+from configreader import *
 
 
 def shell(command):
@@ -56,34 +57,15 @@ def do_fix(vname, fix_cmd):
         return False
 
 
-triggered_host = sys.argv[1]
-trigger_id = sys.argv[2]
-event_id = sys.argv[3]
-
-
-config = configparser.ConfigParser()
-config.read('ztc.conf')
-
-zbx_user = config['ZABBIX']['login']
-zbx_pass = config['ZABBIX']['password']
-zbx_url = config['ZABBIX']['FrontURL']
-zbx_verify_ssl = config['ZABBIX'].getboolean('VerifySSL', False)
-
-use_zbx_agent_to_fix = config['FIX'].getboolean('Usezabbixagent', True)
-acknowledge_user_lst = config['FIX']['trustedzabbixuser'].split(',')
-ssh_user = config['FIX']['sshuser']
-
-log_file = config['FILES']['logfile']
-
-zbx_h_hosts = config['NAMES']['HostsHost']
-zbx_h_pkgs = config['NAMES']['PackagesHost']
-
 logging.basicConfig(
     # level=logging.DEBUG,
     level=logging.INFO,
     filename=log_file,
     format='%(asctime)s  %(process)d  %(levelname)s  %(message)s  [%(filename)s:%(lineno)d]')
 
+triggered_host = sys.argv[1]
+trigger_id = sys.argv[2]
+event_id = sys.argv[3]
 
 logging.info('Getting Started with the event: {}/tr_events.php?triggerid={}&eventid={}'
              .format(zbx_url, trigger_id, event_id))
@@ -103,9 +85,8 @@ except Exception as e:
 try:
     ack = zapi.event.get(eventids=event_id, select_acknowledges=['alias', 'message'], output=['alias', 'message'])
     ack_alias = ack[0]['acknowledges'][0]['alias']
-    # if ack_alias != acknowledge_user_lst:
-    if ack_alias not in acknowledge_user_lst:
-        logging.info('Not trusted user in acknowledge: {}.\nSkipping this request to fix.'.format(ack_alias))
+    if ack_alias not in acknowledge_users:
+        logging.info('Not trusted user in acknowledge: {}. Skipping this request to fix.'.format(ack_alias))
         exit(0)
     tg = zapi.trigger.get(triggerids=trigger_id, output='extend')[0]
 except Exception as e:
@@ -115,6 +96,12 @@ except Exception as e:
 
 tg_desc = tg['description']
 tg_comm = tg['comments']
+tg_manual_close = tg['manual_close']
+
+if tg_manual_close == '1':
+    logging.info('The \"{}\" trigger was manually closed by the \"{}\" user. No further action required'
+                 .format(tg_desc, ack_alias))
+    exit(0)
 
 
 if triggered_host == zbx_h_hosts:
@@ -135,7 +122,5 @@ elif triggered_host == zbx_h_pkgs:
 else:
     logging.info('Host {} that triggered the trigger does not match the required: {} or {}'
                  .format(triggered_host, zbx_h_pkgs, zbx_h_hosts))
-
-# todo: Добавить в акновледж к событию информацию с результатом выполнения команды (успех/неуспех)
 
 logging.info('End')
