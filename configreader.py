@@ -21,7 +21,7 @@ zbx_server_fqdn = config.get('OPTIONAL', 'ZabbixServerFQDN', fallback='localhost
 zbx_server_port = config['OPTIONAL'].getint('ZabbixServerPort', 10051)
 
 use_zbx_agent_to_fix = config['OPTIONAL'].getboolean('UseZabbixAgentToFix', True)
-acknowledge_user_lst = config.get('OPTIONAL', 'TrustedZabbixUsers', fallback='Admin')
+acknowledge_users = config.get('OPTIONAL', 'TrustedZabbixUsers', fallback='Admin').split(',')
 ssh_user = config.get('OPTIONAL', 'SSHUser', fallback='root')
 
 log_file = config.get('OPTIONAL', 'logfile', fallback='/var/log/zabbix-threat-control.log')
