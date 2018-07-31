@@ -52,12 +52,10 @@ def check_zutils(check_type, host_conn):
 
     if check_type == 'agent':
         check_key = 'CheckRemoteCommand'
-        cmd = 'zabbix_get -s {host_conn} -k  system.run["echo {check_key}"]'.format(host_conn=host_conn,
-                                                                                    check_key=check_key)
+        cmd = '{z_get_bin} -s {host_conn} -k  system.run["echo {check_key}"]'.format(z_get_bin=z_get_bin, host_conn=host_conn, check_key=check_key)
     elif check_type == 'server':
         check_key = '"response":"success"'
-        cmd = 'zabbix_sender -z {host_conn} -p {port} -s zabbix_sender_ztc_test -k zabbix_sender_ztc_test -o 1 -vv'.format(
-            host_conn=host_conn, port=zbx_server_port, check_key=check_key)
+        cmd = '{z_sender_bin} -z {host_conn} -p {port} -s zabbix_sender_ztc_test -k zabbix_sender_ztc_test -o 1 -vv'.format(z_sender_bin=z_sender_bin, host_conn=host_conn, port=zbx_server_port, check_key=check_key)
     else:
         return False, 1, 1
 
