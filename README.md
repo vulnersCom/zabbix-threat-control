@@ -102,9 +102,10 @@ This can be done directly from Zabbix (using its standard functionality) either 
 
     git clone https://github.com/vulnersCom/zabbix-threat-control.git
     mkdir -p /opt/monitoring/zabbix-threat-control
-    cp zabbix-threat-control/ztc* /opt/monitoring/zabbix-threat-control/
+    cd zabbix-threat-control
+    cp prepare.py readconfig.py ztc.conf ztc.py ztc_fix.py /opt/monitoring/zabbix-threat-control/
     chown -R zabbix:zabbix /opt/monitoring/zabbix-threat-control
-    chmod 640 /opt/monitoring/zabbix-threat-control/ztc_config.py
+    chmod 640 /opt/monitoring/zabbix-threat-control/ztc.conf
     touch /var/log/zabbix-threat-control.log
     chown zabbix:zabbix /var/log/zabbix-threat-control.log
     chmod 664 /var/log/zabbix-threat-control.log
@@ -118,24 +119,8 @@ This can be done directly from Zabbix (using its standard functionality) either 
 
 ## Configuration
 
-Configuration file is located here: `/opt/monitoring/zabbix-threat-control/ztc_config.py`
+Configuration file is located here: `/opt/monitoring/zabbix-threat-control/ztc.conf`
 
-### Zabbix credentials
-
-In order to connect to Zabbix you need to specify the following in the configuration file:
--	The URL, username and password. Note that the User should have rights to create groups, hosts and templates in Zabbix.
--	Domain name and port of the Zabbix-server for pushing data using the zabbix-sender.
-
-Here is an example of a valid config file:
-
-```
-zbx_pass = 'yourpassword'
-zbx_user = 'yourlogin'
-zbx_url = 'https://zabbixfront.yourdomain.com'
-
-zbx_server_fqdn = 'zabbixserver.yourdomain.com'
-zbx_server_port = '10051'
-```
 ### Vulners credentials
 
 To use Vulners API you need an api-key. To get it follow the steps bellow:
@@ -146,15 +131,34 @@ To use Vulners API you need an api-key. To get it follow the steps bellow:
 - You will get an api-key, which looks like this:
 **RGB9YPJG7CFAXP35PMDVYFFJPGZ9ZIRO1VGO9K9269B0K86K6XQQQR32O6007NUK**
 
-Now you need to add the Vulners api-key into your configuration file (parameter ```vuln_api_key```).
+Now you need to add the Vulners api-key into your configuration file (parameter ```VulnersApiKey```).
 
 ```
-vuln_api_key = 'RGB9YPJG7CFAXP35PMDVYFFJPGZ9ZIRO1VGO9K9269B0K86K6XQQQR32O6007NUK'
+VulnersApiKey = RGB9YPJG7CFAXP35PMDVYFFJPGZ9ZIRO1VGO9K9269B0K86K6XQQQR32O6007NUK
+```
+
+
+### Zabbix credentials
+
+In order to connect to Zabbix you need to specify the following in the configuration file:
+-	The URL, username and password. Note that the User should have rights to create groups, hosts and templates in Zabbix.
+-	Domain name and port of the Zabbix-server for pushing data using the zabbix-sender.
+
+Here is an example of a valid config file:
+
+```
+ZabbixApiUser = yourlogin
+ZabbixApiPassword = yourpassword
+ZabbixFrontUrl = https://zabbixfront.yourdomain.com
+
+ZabbixServerFQDN = zabbixserver.yourdomain.com
+ZabbixServerPort = 10051
 ```
 
 ### Zabbix entity
 
-1. To create all the necessary objects in Zabbix, run the `/opt/monitoring/zabbix-threat-control/ztc_create.py` script. It will create the following objects using Zabbix API:
+1. To create all the necessary objects in Zabbix, run the `prepare.py` script with parameters.</br>
+`/opt/monitoring/zabbix-threat-control/prepare.py --utils --hosts --template  --dashboard --action`</br>It will create the following objects using Zabbix API:
    * **A template** used to collect data from servers.
    * **Zabbix hosts** for obtaining data on vulnerabilities.
    * **An action** for run the command fixes the vulnerability.
