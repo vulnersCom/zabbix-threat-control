@@ -22,7 +22,7 @@ Information is displayed in Zabbix in the following format:
 - List of all vulnerable packages in your infrastructure.
 
 
-![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/hosts.gif)
+![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/media/hosts.gif)
 
 
 Security bulletins and packages information includes:
@@ -33,7 +33,7 @@ Security bulletins and packages information includes:
 - A detailed list of affected hosts.
 - Hyperlink to the description of a bulletin.
 
-![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/pkgs.gif)
+![](https://github.com/vulnersCom/zabbix-threat-control/blob/master/media/pkgs.gif)
 
 Sometimes it is impossible to update all packages on all servers to a version that fixes existing vulnerabilities. The proposed representation permits you to selectively update servers or packages.
 
