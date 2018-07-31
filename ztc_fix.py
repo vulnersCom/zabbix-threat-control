@@ -81,7 +81,6 @@ except Exception as e:
     exit(1)
 
 
-# todo: добавить обработку "закытие события, без выполнения действия"
 try:
     ack = zapi.event.get(eventids=event_id, select_acknowledges=['alias', 'message'], output=['alias', 'message'])
     ack_alias = ack[0]['acknowledges'][0]['alias']
