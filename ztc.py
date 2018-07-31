@@ -201,7 +201,7 @@ else:
         try:
             # сохраняем дамп матрицы хостов на диск
             dump_create(h_matrix_dumpfile, h_matrix)
-            logging.info('host-matrix saved to {}'.format(h_matrix_dumpfil))
+            logging.info('host-matrix saved to {}'.format(h_matrix_dumpfile))
         except Exception as e:
             logging.warning('Can\'t dump host-matrix to disk. Exception: {}'.format(e))
 
