@@ -5,7 +5,7 @@
 Zabbix vulnerability assessment plugin.
 
 Script will fix vulnerabilities.
-ztc_fix.py {HOST.HOST} {TRIGGER.ID} {EVENT.ID}
+fix.py {HOST.HOST} {TRIGGER.ID} {EVENT.ID}
 """
 
 

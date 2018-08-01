@@ -14,6 +14,7 @@ __author__ = 'samosvat'
 __version__ = '1.3.3'
 
 
+import sys
 import argparse
 import subprocess
 from datetime import datetime, timedelta
@@ -24,32 +25,32 @@ from pyzabbix import ZabbixAPI
 from readconfig import *
 
 
-parser = argparse.ArgumentParser(description='Vulners to zabbix integration tool')
+parser = argparse.ArgumentParser(description='Zabbix Threat Control - vulnerability assessment plugin')
 
 
 parser.add_argument(
-    '--utils',
-    help='Сheck zabbix-sender and zabbix-get settings.',
+    '-u', '--utils',
+    help='check zabbix-sender and zabbix-get settings',
     action='store_true')
 
 parser.add_argument(
-    '--hosts',
-    help='Create the ZTC Hosts in zabbix.',
+    '-v', '--vhosts',
+    help='create the Virtual ZTC hosts in zabbix',
     action='store_true')
 
 parser.add_argument(
-    '--template',
-    help='Create the ZTC Template in zabbix.',
+    '-t', '--template',
+    help='create the ZTC Template in zabbix',
     action='store_true')
 
 parser.add_argument(
-    '--dashboard',
-    help='Create the ZTC Dashboard in zabbix.',
+    '-d', '--dashboard',
+    help='create the ZTC Dashboard in zabbix',
     action='store_true')
 
 parser.add_argument(
-    '--action',
-    help='Create the ZTC Action in zabbix.',
+    '-a', '--action',
+    help='create the ZTC Action in zabbix',
     action='store_true')
 
 args = parser.parse_args()
@@ -97,7 +98,7 @@ def z_host_create(zbx_host, zbx_vname, group_id, appl_name, lld_name, lld_key, i
 
     try:
         host_id = zapi.host.create(host=zbx_host, name=zbx_vname, groups=[{'groupid': group_id}],
-                                   macros=[{'macro': '{$SCORE.MIN}', 'value': 1}],
+                                   macros=[{'macro': '{$SCORE.MIN}', 'value': min_cvss}],
                                    interfaces=[
                                        {'type': 1, 'main': 1, 'useip': host_use_ip, 'ip': '127.0.0.1',
                                         'dns': zbx_server_fqdn, 'port': '10050'}])['hostids'][0]
@@ -120,6 +121,9 @@ def z_host_create(zbx_host, zbx_vname, group_id, appl_name, lld_name, lld_key, i
         print('Can\'t create host {}. Exception: {}'.format(zbx_host, e))
         exit(1)
 
+if not len(sys.argv) > 1:
+    parser.print_help()
+    exit(0)
 
 try:
     zapi = ZabbixAPI(zbx_url, timeout=5)
@@ -167,7 +171,7 @@ if args.utils:
 
 
 # Z-HOSTS
-if args.hosts:
+if args.vhosts:
     # HOSTGROUP
     try:
         group_id = zapi.hostgroup.get(filter={'name': group_name}, output=['groupid'])[0]['groupid']
@@ -188,7 +192,6 @@ if args.hosts:
                              lld_key='vulners.hosts_lld',
                              item_proto_name='CVSS Score on {#H.HOST} [{#H.VNAME}]',
                              item_proto_key='vulners.hosts[{#H.ID}]',
-                             # trig_proto_expr='{' + zbx_h_hosts + ':vulners.hosts[{#H.ID}].last()}>0 and {#H.SCORE}>={$SCORE.MIN}',
                              trig_proto_expr='{' + zbx_h_hosts + ':vulners.hosts[{#H.ID}].last()}>={$SCORE.MIN}',
                              trig_proto_descr='Score {#H.SCORE}. Host = {#H.VNAME}',
                              trig_proto_url='',
@@ -204,9 +207,7 @@ if args.hosts:
                              item_proto_name='[{#BULLETIN.SCORE}] [{#BULLETIN.ID}] - affected hosts',
                              item_proto_key='vulners.bulletin[{#BULLETIN.ID}]',
                              trig_proto_expr='{' + zbx_h_bulls + ':vulners.bulletin[{#BULLETIN.ID}].last()}>={$SCORE.MIN}',
-                             # trig_proto_expr='{' + zbx_h_bulls + ':vulners.bulletin[{#BULLETIN.ID}].last()}>0 and {#BULLETIN.SCORE}>={$SCORE.MIN}',
                              trig_proto_descr='Impact {#BULLETIN.IMPACT}. Score {#BULLETIN.SCORE}. Affected {ITEM.LASTVALUE}. Bulletin = {#BULLETIN.ID}',
-                             # trig_proto_descr='Impact {#BULLETIN.IMPACT}. Score {#BULLETIN.SCORE}. Affected {#BULLETIN.AFFECTED}. Bulletin = {#BULLETIN.ID}',
                              trig_proto_url='https://vulners.com/info/{#BULLETIN.ID}',
                              trig_proto_comm='Vulnerabilities are found on:\r\n\r\n{#BULLETIN.HOSTS}')
 
@@ -220,9 +221,7 @@ if args.hosts:
                             item_proto_name='[{#PKG.SCORE}] [{#PKG.ID}] - affected hosts',
                             item_proto_key='vulners.pkg[{#PKG.ID}]',
                             trig_proto_expr='{' + zbx_h_pkgs + ':vulners.pkg[{#PKG.ID}].last()}>={$SCORE.MIN}',
-                            # trig_proto_expr='{' + zbx_h_pkgs + ':vulners.pkg[{#PKG.ID}].last()}>0 and {#PKG.SCORE}>={$SCORE.MIN}',
                             trig_proto_descr='Impact {#PKG.IMPACT}. Score {#PKG.SCORE}. Affected {ITEM.LASTVALUE}. Package = {#PKG.ID}',
-                            # trig_proto_descr='Impact {#PKG.IMPACT}. Score {#PKG.SCORE}. Affected {#PKG.AFFECTED}. Package = {#PKG.ID}',
                             trig_proto_url='https://vulners.com/info/{#PKG.URL}',
                             trig_proto_comm='Vulnerabilities are found on:\r\n\r\n{#PKG.HOSTS}\r\n----\r\n{#PKG.FIX}')
 
@@ -347,7 +346,9 @@ if args.template:
         print('Can\'t create template "{}". Exception: {}'.format(tmpl_name, e))
         exit(1)
 
+
 # ACTION
+# todo проверка что созданы хосты (их id нужны для фильтра)
 if args.action:
     try:
         action_id = zapi.action.get(filter={'name': action_name}, output=['actionid'])[0]['actionid']
@@ -372,11 +373,12 @@ if args.action:
                                                                 'authtype': 0,
                                                                 'username': '', 'password': '', 'publickey': '',
                                                                 'privatekey': '',
-                                                                'command': '/opt/monitoring/zabbix-threat-control/ztc_fix.py {HOST.HOST} {TRIGGER.ID} {EVENT.ID}'}}])['actionids'][0]
+                                                                'command': '/opt/monitoring/zabbix-threat-control/fix.py {HOST.HOST} {TRIGGER.ID} {EVENT.ID}'}}])['actionids'][0]
     print('Created action "{}" (id: {})\n'.format(action_name, action_id))
 
 
 # DASHBOARD
+# todo проверка что созданы хосты (их id нужны для даша)
 if args.dashboard:
     w = [{'type': 'problems', 'name': zbx_h_bulls_vname, 'x': '5', 'y': '7', 'width': '7', 'height': '8',
           'fields': [{'type': '0', 'name': 'rf_rate', 'value': '900'}, {'type': '0', 'name': 'show', 'value': '3'},
