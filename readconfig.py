@@ -45,7 +45,7 @@ zbx_h_stats = config.get('OPTIONAL', 'StatisticsHost', fallback='vulners.statist
 zbx_h_stats_vname = config.get('OPTIONAL', 'StatisticsVisibleName', fallback='Vulners - Statistics')
 
 stats_macros_name = config.get('OPTIONAL', 'StatisticsMacrosName', fallback='{$WORK_SCRIPT_CMD}')
-stats_macros_value = config.get('OPTIONAL', 'StatisticsMacrosValue', fallback='/opt/monitoring/zabbix-threat-control/ztc.py')
+stats_macros_value = config.get('OPTIONAL', 'StatisticsMacrosValue', fallback='/opt/monitoring/zabbix-threat-control/scan.py')
 
 tmpl_host = config.get('OPTIONAL', 'TemplateHost', fallback='tmpl.vulners.os-report')
 tmpl_name = config.get('OPTIONAL', 'TemplateVisibleName', fallback='Template Vulners OS-Report')
@@ -61,4 +61,4 @@ tmpl_group_name = config.get('OPTIONAL', 'TemplateGroupName', fallback='Template
 z_sender_bin = config.get('OPTIONAL', 'ZabbixSender', fallback='zabbix_sender')
 z_get_bin = config.get('OPTIONAL', 'ZabbixGet', fallback='zabbix_get')
 
-python_modules = config.get('OPTIONAL', 'PythonModules', fallback='pyzabbix,vulners').split(',')
+min_cvss = config['OPTIONAL'].getint('MinCVSS', 1)

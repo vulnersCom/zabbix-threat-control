@@ -102,10 +102,10 @@ This can be done directly from Zabbix (using its standard functionality) either 
 
     git clone https://github.com/vulnersCom/zabbix-threat-control.git
     mkdir -p /opt/monitoring/zabbix-threat-control
-    cd zabbix-threat-control
-    cp prepare.py readconfig.py ztc.conf ztc.py ztc_fix.py /opt/monitoring/zabbix-threat-control/
+    cp zabbix-threat-control/*.py /opt/monitoring/zabbix-threat-control/
+    cp zabbix-threat-control/*.conf /opt/monitoring/zabbix-threat-control/
     chown -R zabbix:zabbix /opt/monitoring/zabbix-threat-control
-    chmod 640 /opt/monitoring/zabbix-threat-control/ztc.conf
+    chmod 640 /opt/monitoring/zabbix-threat-control/*.conf
     touch /var/log/zabbix-threat-control.log
     chown zabbix:zabbix /var/log/zabbix-threat-control.log
     chmod 664 /var/log/zabbix-threat-control.log
@@ -158,7 +158,7 @@ ZabbixServerPort = 10051
 ### Zabbix entity
 
 1. To create all the necessary objects in Zabbix, run the `prepare.py` script with parameters.</br>
-`/opt/monitoring/zabbix-threat-control/prepare.py --utils --hosts --template  --dashboard --action`</br>It will create the following objects using Zabbix API:
+`/opt/monitoring/zabbix-threat-control/prepare.py -uvtda`</br>It will verify that the zabbix-agent and zabbix-get utilities are configured correctly and create the following objects using Zabbix API:
    * **A template** used to collect data from servers.
    * **Zabbix hosts** for obtaining data on vulnerabilities.
    * **An action** for run the command fixes the vulnerability.
@@ -187,13 +187,13 @@ zabbix ALL=(ALL) NOPASSWD: /usr/bin/apt-get --assume-yes install --only-upgrade 
   Script transfers the name, version and installed packages of the operating system to Zabbix.<br />
   Runs with zabbix-agent on all hosts to which the template "Vulners OS-Report" is linked.
 
-- `/opt/monitoring/zabbix-threat-control/ztc.py`<br />
+- `/opt/monitoring/zabbix-threat-control/scan.py`<br />
   Script processes raw data from zabbix and vulners and push them to the monitoring system using zabbix-sender.<br />
   Runs with zabbix-agent on the Zabbix server via the item "Service item" on the host "Vulners - Statistics".
 
 These 2 scripts above are run once a day. The start-up time is selected randomly during the installation and does not change during operation.
   
-- `/opt/monitoring/zabbix-threat-control/ztc_fix.py`<br />
+- `/opt/monitoring/zabbix-threat-control/fix.py`<br />
   Script runs commands to fix vulnerabilities on servers. Executed as a remote command in the action "Vunlers" in Zabbix. 
    
 
