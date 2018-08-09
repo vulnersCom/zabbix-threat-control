@@ -7,7 +7,7 @@ __version__ = '1.3.3'
 import configparser
 
 config = configparser.ConfigParser()
-config.read('ztc.conf')
+config.read('/opt/monitoring/zabbix-threat-control/ztc.conf')
 
 vuln_api_key = config.get('MANDATORY', 'VulnersApiKey', fallback=None)
 
