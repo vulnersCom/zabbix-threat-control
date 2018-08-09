@@ -82,8 +82,9 @@ except Exception as e:
 
 
 try:
-    ack = zapi.event.get(eventids=event_id, select_acknowledges=['alias', 'message'], output=['alias', 'message'])
+    ack = zapi.event.get(eventids=event_id, select_acknowledges=['alias', 'message', 'action'], output=['alias', 'message', 'action'])
     ack_alias = ack[0]['acknowledges'][0]['alias']
+    ack_action = ack[0]['acknowledges'][0]['action']
     if ack_alias not in acknowledge_users:
         logging.info('Not trusted user in acknowledge: {}. Skipping this request to fix.'.format(ack_alias))
         exit(0)
@@ -95,9 +96,8 @@ except Exception as e:
 
 tg_desc = tg['description']
 tg_comm = tg['comments']
-tg_manual_close = tg['manual_close']
 
-if tg_manual_close == '1':
+if ack_action == '1':
     logging.info('The \"{}\" trigger was manually closed by the \"{}\" user. No further action required'
                  .format(tg_desc, ack_alias))
     exit(0)
