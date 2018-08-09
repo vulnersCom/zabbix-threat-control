@@ -19,7 +19,7 @@ import jpath
 
 from pyzabbix import ZabbixAPI
 
-import requests
+import vulners
 
 from readconfig import *
 
@@ -27,9 +27,9 @@ from readconfig import *
 vulners_url = 'https://vulners.com/api/v3/audit/audit/'
 jpath_mask = 'data.packages.*.*.*'
 
-zsender_lld_file = work_dir + 'lld.zbx'
-zsender_data_file = work_dir + 'data.zbx'
-h_matrix_dumpfile = work_dir + 'dump.bin'
+zsender_lld_file = work_dir + '/lld.zbx'
+zsender_data_file = work_dir + '/data.zbx'
+h_matrix_dumpfile = work_dir + '/dump.bin'
 
 parser = argparse.ArgumentParser(description='Vulners to zabbix integration tool')
 
@@ -97,8 +97,10 @@ def dump_load(filename):
 
 
 logging.info('Start.')
-if len(vuln_api_key) != 64:
-    logging.error('Error: not a valid Vulners API-key')
+try:
+    vapi = vulners.Vulners(api_key=vuln_api_key)
+except Exception as e:
+    logging.error('Error: Used API key: {}. {} '.format(vuln_api_key, e))
     exit(1)
 
 # создаем сессию в заббикс
@@ -167,27 +169,23 @@ else:
     # обогащаем матрицу данными от вулнерса
     logging.info('Receiving the vulnerabilities from Vulners')
     current_host = 0
-    logging.info('Processing hosts')
-    user_agent = 'vulners-ztc-{}'.format(__version__)
     for h in h_matrix:
         current_host += 1
-        # todo: логирование обработки каждой стрки в матрице?
+        # todo: логирование обработки каждого хоста
         try:
-            os_data = '{"package":' + json.dumps(h['OS - Packages'].splitlines()) + ',"os":"' + h['OS - Name'] + \
-                      '","version":"' + h['OS - Version'] + '","apiKey":"' + vuln_api_key + '"}'
             # идем в вулнерс и получем там уязвимости для списка пакетов и ОС
-            vuln_response = requests.post(vulners_url, data=os_data, headers={'User-Agent': user_agent,
-                                                                              'Content-Type': 'application/json', })
-            h.update({'vuln_data': vuln_response.json()})
-            # чтобы вулнерс не упал под нагрузкой, засыпаем на чуть-чуть (между запросами)
-            ratelimit = int(vuln_response.headers.get('x-vulners-ratelimit-reqlimit'))
-            sleep_timeout = 2 / ratelimit
-            sleep(sleep_timeout)
+            vulnerabilities = vapi.audit(os=h['OS - Name'], os_version=h['OS - Version'], package=h['OS - Packages'].splitlines())
+            if vulnerabilities.get('errorCode', 0) == 0:
+                h.update({'vuln_data': {'data': vulnerabilities, 'result': 'OK'}})
+                logging.info('[{} of {}] Successfully received data from Vulners for host \"{}\".'
+                             .format(current_host, total_hosts, h['v_name']))
+            else:
+                h.update({'vuln_data': {'data': vulnerabilities, 'result': 'FAIL'}})
+                logging.info('[{} of {}] Can\'t receive data from Vulners for host \"{}\". Vulners error message: {}'
+                             .format(current_host, total_hosts, h['v_name'], vulnerabilities.get('error', 0)))
         except Exception as e:
-            sleep_timeout = 2
-            h.update({'vuln_data': {'result': 'FAIL'}})
-            logging.warning('[{} in {}] Skip {}], can\'t receive the vulnerabilities from Vulners. Exception: {}'
-                            .format(current_host, total_hosts, h['v_name'], e))
+            h.update({'vuln_data': {'data': '', 'result': 'FAIL'}})
+            logging.warning('[{} of {}] Error getting data from Vulners for server \"{}\". Exception: {}'.format(current_host, total_hosts, h['v_name'], e))
             continue
     logging.info('Processed hosts: {}'.format(current_host))
 
