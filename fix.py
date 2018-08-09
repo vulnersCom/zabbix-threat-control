@@ -82,7 +82,8 @@ except Exception as e:
 
 
 try:
-    ack = zapi.event.get(eventids=event_id, select_acknowledges=['alias', 'message', 'action'], output=['alias', 'message', 'action'])
+    ack = zapi.event.get(eventids=event_id, select_acknowledges=['alias', 'message', 'action'],
+                         output=['alias', 'message', 'action'])
     ack_alias = ack[0]['acknowledges'][0]['alias']
     ack_action = ack[0]['acknowledges'][0]['action']
     if ack_alias not in acknowledge_users:
@@ -96,6 +97,7 @@ except Exception as e:
 
 tg_desc = tg['description']
 tg_comm = tg['comments']
+
 
 if ack_action == '1':
     logging.info('The \"{}\" trigger was manually closed by the \"{}\" user. No further action required'
