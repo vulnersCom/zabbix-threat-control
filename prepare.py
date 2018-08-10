@@ -333,10 +333,10 @@ if args.template:
         tmpl_app_id = zapi.application.create(name=tmpl_appl_name, hostid=tmpl_id)['applicationids'][0]
 
         zapi.item.create(name='OS - Name', key_='system.run[{$REPORT_SCRIPT_PATH} os]', hostid=tmpl_id, type=0,
-                         value_type=4, interfaceid='0', applications=[tmpl_app_id], delay=delay_report)
+                         value_type=1, interfaceid='0', applications=[tmpl_app_id], delay=delay_report)
 
         zapi.item.create(name='OS - Version', key_='system.run[{$REPORT_SCRIPT_PATH} version]', hostid=tmpl_id, type=0,
-                         value_type=4, interfaceid='0', applications=[tmpl_app_id], delay=delay_report)
+                         value_type=1, interfaceid='0', applications=[tmpl_app_id], delay=delay_report)
 
         zapi.item.create(name='OS - Packages', key_='system.run[{$REPORT_SCRIPT_PATH} package]', hostid=tmpl_id, type=0,
                          value_type=4, interfaceid='0', applications=[tmpl_app_id], delay=delay_report)

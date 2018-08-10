@@ -45,6 +45,11 @@ parser.add_argument(
     help='Dump zabbix and vulners data to disk',
     action='store_true')
 
+parser.add_argument(
+    '-l', '--limit',
+    type=int,
+    help='Host limit for processing. Only the specified number of hosts will be received from the Zabbix.')
+
 
 args = parser.parse_args()
 
@@ -119,26 +124,28 @@ if os.path.exists(h_matrix_dumpfile):
     h_matrix = dump_load(h_matrix_dumpfile)
     total_hosts = len(h_matrix)
 else:
-        # если дампа матрицы на диске нет - формируем (исходные данные из zabbix и затем обогащаем их через vulners)
+    # если дампа матрицы на диске нет - формируем (исходные данные из zabbix и затем обогащаем их через vulners)
     total_hosts = 0
     try:
         tmpl_id = zapi.template.get(filter={'host': tmpl_host})[0]['templateid']
-        h_matrix = zapi.host.get(templated_hosts=False, templateids=tmpl_id, monitored_hosts=True, output=['hostid'])
-        # h_matrix = zapi.host.get(templated_hosts=False, templateids=tmpl_id, limit=5, monitored_hosts=True, output=['hostid'])
-        full_hosts = len(h_matrix)
-        logging.info('Received from Zabbix {} hosts for processing'.format(full_hosts))
+        if args.limit is None:
+            h_matrix = zapi.host.get(templated_hosts=False, templateids=tmpl_id, monitored_hosts=True, output=['hostid'])
+        else:
+            logging.info('\"limit\" option is used. Fetching data from Zabbix is limited to {} hosts.'.format(args.limit))
+            h_matrix = zapi.host.get(templated_hosts=False, templateids=tmpl_id, limit=args.limit, monitored_hosts=True, output=['hostid'])
     except Exception as e:
         logging.error('Error: Can\'t get data from Zabbix. Exception: {}'.format(e))
         exit(1)
 
-    logging.info('Receiving additional information for all hosts from Zabbix')
+    full_hosts = len(h_matrix)
+    logging.info('Received from Zabbix {} hosts for processing'.format(full_hosts))
+
+    logging.info('Receiving extended data about hosts from Zabbix')
     current_host = 0
-    logging.info('Processing hosts')
     for h in h_matrix:
         current_host += 1
         try:
             host = zapi.host.get(filter={'hostid': h['hostid']}, output=['host', 'name'])[0]
-            # h.update({'host': host['host'], 'name': host['name']})
             h.update({'host_name': host['host'], 'v_name': host['name']})
 
             items = zapi.item.get(hostids=h['hostid'], search={'key_': tmpl_macros_name}, output=['name', 'lastvalue'])
@@ -148,14 +155,12 @@ else:
             # Костыль! Вулнерс почему то не умеет обрабатывать "ol"
             h.update({'OS - Name': re.sub('ol', 'oraclelinux', h['OS - Name'])})
 
+            logging.info('[{} of {}] \"{}\". Successfully received extended data'
+                         .format(current_host, full_hosts, h['v_name']))
         except Exception as e:
-            logging.warning('[{} in {}] Skip, can\'t get additional data for hostid {}. Exception: {}'
+            h.update({'OS - Packages': '', 'OS - Name': '', 'OS - Version': '', 'v_name': '', 'host_name': ''})
+            logging.warning('[{} in {}] Skip, can\'t get additional data about hostid {}. Exception: {}'
                             .format(current_host, full_hosts, h['hostid'], e))
-            h.update({'OS - Packages': '',
-                      'OS - Name': '',
-                      'OS - Version': '',
-                      'v_name': '',
-                      'host_name': ''})
             continue
     logging.info('Processed hosts: {}.'.format(current_host))
 
@@ -171,29 +176,30 @@ else:
     current_host = 0
     for h in h_matrix:
         current_host += 1
-        # todo: логирование обработки каждого хоста
         try:
             # идем в вулнерс и получем там уязвимости для списка пакетов и ОС
             vulnerabilities = vapi.audit(os=h['OS - Name'], os_version=h['OS - Version'], package=h['OS - Packages'].splitlines())
             if vulnerabilities.get('errorCode', 0) == 0:
                 h.update({'vuln_data': {'data': vulnerabilities, 'result': 'OK'}})
-                logging.info('[{} of {}] Successfully received data from Vulners for host \"{}\".'
+                logging.info('[{} of {}] \"{}\". Successfully received data from Vulners'
                              .format(current_host, total_hosts, h['v_name']))
             else:
                 h.update({'vuln_data': {'data': vulnerabilities, 'result': 'FAIL'}})
-                logging.info('[{} of {}] Can\'t receive data from Vulners for host \"{}\". Vulners error message: {}'
+                logging.info('[{} of {}] \"{}\". Can\'t receive data from Vulners. Error message: {}'
                              .format(current_host, total_hosts, h['v_name'], vulnerabilities.get('error', 0)))
         except Exception as e:
             h.update({'vuln_data': {'data': '', 'result': 'FAIL'}})
-            logging.warning('[{} of {}] Error getting data from Vulners for server \"{}\". Exception: {}'.format(current_host, total_hosts, h['v_name'], e))
+            logging.warning('[{} of {}] \"{}\". Error getting data from Vulners. Exception: {}'.format(current_host, total_hosts, h['v_name'], e))
             continue
     logging.info('Processed hosts: {}'.format(current_host))
 
-    logging.info('Checking data from Vulners')
+    logging.info('Exclude invalid response data from Vulners')
     # удаляем невалидные элементы данных из матрицы (там где ответ вулнерс не подходящй)
     h_matrix[:] = [h for h in h_matrix if h['vuln_data']['result'] == 'OK']
+    removed_cnt = total_hosts - len(h_matrix)
     total_hosts = len(h_matrix)
-    logging.info('After checking data from Vulners there are {} entries left'.format(total_hosts))
+    logging.info('There are {} entries left. Removed: {}'.format(total_hosts, removed_cnt))
+
 
     if args.DumpHostMatrix:
         try:
@@ -210,10 +216,8 @@ if len(h_matrix) == 0:
 logging.info('Сreating an additional field in the host-matrix based on data from Vulners')
 # формируем доп-поля в матрице на основе данных от вулнерса
 current_host = 0
-logging.info('Processing hosts')
 for h in h_matrix:
     current_host += 1
-    # todo: логирование обработки каждой стрки в матрице?
     try:
         # список словарей из bulletitID + SCORE, для этого хоста
         h_bulletins = list()
@@ -253,8 +257,10 @@ for h in h_matrix:
                   'h_score': h['vuln_data']['data']['cvss']['score'],
                   'h_packages': uniq_list(h_packages),
                   'h_bulletins': uniq_list(h_bulletins)})
+
+        logging.info('[{} of {}] \"{}\". Successfully processed'.format(current_host, total_hosts, h['v_name']))
     except Exception as e:
-        logging.warning('[{} of {}] Skipping {}. Exception: {}'.format(current_host, total_hosts, h['v_name'], e))
+        logging.warning('[{} of {}] \"{}\". Skipping. Exception: {}'.format(current_host, total_hosts, h['v_name'], e))
         continue
 logging.info('Processed hosts: {}'.format(current_host))
 
@@ -276,7 +282,7 @@ for h in h_matrix:
 
         f.write('\"{}\" vulners.hosts[{}] {}\n'.format(zbx_h_hosts, h['hostid'], h['h_score']))
     except Exception as e:
-        logging.warning('[{} of {}] {}. Exception: {}'.format(current_host, total_hosts, h['v_name'], e))
+        logging.warning('[{} of {}] \"{}\". Skipping. Exception: {}'.format(current_host, total_hosts, h['v_name'], e))
         continue
 
 # преобразовываем список в однострочный json без пробелов и пишем в файл
@@ -287,7 +293,7 @@ f_lld.write('\"{}\" vulners.hosts_lld {}\n'.format(zbx_h_hosts, discovery_hosts_
 ###########################
 # ФОРМИРУЕМ МАТРИЦУ ПАКЕТОВ
 ###########################
-logging.info('Creating an package-matrix')
+logging.info('Creating a matrix of vulnerable packages of all hosts')
 
 # цель - найти все хосты, на которых зааффектило этот пакет, для этого
 pkg_matrix_tmp = list()
@@ -298,7 +304,6 @@ h_row_iter = 0
 pp_iter = 0
 for row in h_matrix:
     row_iter += 1
-    # todo: логирование обработки каждой стрки в матрице?
     try:
         # для каждого пакета в списке пакет-балл (из строки выше), делаем следующее
         for p_row in row['h_packages']:
@@ -316,11 +321,16 @@ for row in h_matrix:
                         host_list.append(h_row['v_name'])
             pkg_matrix_tmp.append({'pkg': p_row['name'], 'score': p_row['score'], 'bull': p_row['bull'],
                                    'fix': p_row['fix'], 'host_list': host_list})
+        if len(row['h_packages']) > 0:
+            logging.info('[{} of {}] \"{}\". Successfully processed vulnerable packages: {}'.format(row_iter, total_hosts, row['v_name'], len(row['h_packages'])))
+        else:
+            logging.info('[{} of {}] \"{}\". No vulnerable packages found'.format(row_iter, total_hosts, row['v_name']))
     except Exception as e:
-        logging.warning('Skipping {}. Exception: {}'.format(row['v_name'], e))
+        logging.warning('[{} of {}] \"{}\". Skipping. Exception: {}'.format(row_iter, total_hosts, row['v_name'], e))
         continue
 logging.info('Processed hosts: {}'.format(row_iter))
 pkg_matrix = uniq_list(pkg_matrix_tmp)
+logging.info('Unique vulnerable packages processed: {}'.format(len(pkg_matrix)))
 
 
 # формируем пакет LLD-данных
@@ -365,10 +375,8 @@ hh_iter = 0
 # из каждой строки в матрице хостов "ХОСТ-[СПИСОК_БЮЛЛЕТЕНЕЙ]" (уровень 1)
 for d in h_matrix:
     d_iter += 1
-    # todo: логирование обработки каждой стрки в матрице?
     try:
         # обрабатыватываем поочередно каждый бюллетень из [СПИСОК_БЮЛЛЕТЕНЕЙ] (уровень 2)
-        # todo: может быть стоит проверить что на хосте есть бюллетени, а не безусловно счтать что они есть?
         for bull in d['h_bulletins']:
             bull_iter += 1
             hh_list = list()
@@ -384,14 +392,19 @@ for d in h_matrix:
             bulletins_d = {'bull': bull, 'hosts': hh_list}
             # формируем список словарей (сырую матрицу) "БЮЛЛЕТЕНЬ-[СПИСОК_ХОСТОВ]" (обратную от host_matrix)
             full_bulletins_lst.append(bulletins_d)
+
+        if len(d['h_bulletins']) > 0:
+            logging.info('[{} of {}] \"{}\". Successfully processed security bulletins: {}'.format(d_iter, total_hosts, d['v_name'], len(d['h_bulletins'])))
+        else:
+            logging.info('[{} of {}] \"{}\". No security bulletins found'.format(d_iter, total_hosts, d['v_name']))
     except Exception as e:
-        logging.warning('Skipping entrie {}. Exception: {}'.format(bull_iter, e))
+        logging.warning('[{} of {}] \"{}\". Skipping. Exception: {}'.format(d_iter, total_hosts, d['v_name'], e))
         continue
 logging.info('Processed hosts: {}'.format(d_iter))
 
-
 # оставляем только уникальные записи в списке (итоговая матрица)
 b_matrix = uniq_list(full_bulletins_lst)
+logging.info('Unique security bulletins processed: {}'.format(len(b_matrix)))
 
 # формируем пакет LLD-данных
 logging.info('Сreating an LLD-data for bulletin monitoring')
