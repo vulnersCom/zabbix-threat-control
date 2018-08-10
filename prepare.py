@@ -25,7 +25,7 @@ from pyzabbix import ZabbixAPI
 from readconfig import *
 
 
-parser = argparse.ArgumentParser(description='Zabbix Threat Control - vulnerability assessment plugin')
+parser = argparse.ArgumentParser(description='Creates objects in ZABBIX for  "ZTC ". Usage: ./prepare.py -uvtda')
 
 
 parser.add_argument(
@@ -122,7 +122,7 @@ def z_host_create(zbx_host, zbx_vname, group_id, appl_name, lld_name, lld_key, i
         exit(1)
 
 if not len(sys.argv) > 1:
-    parser.print_help()
+    print('\nYou do not specify the objects that you want to create.\nShow help:   ./prepare.py -h\nTypical use: ./prepare.py -uvtda')
     exit(0)
 
 try:
