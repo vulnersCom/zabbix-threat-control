@@ -1,3 +1,10 @@
+#### :bangbang: Updated Zabbix Threat Control to version 1.3.4 :bangbang:
+💥 Update breaks the plugin's normal operation!</br>
+To make it work, please read the [Update instructions](https://github.com/vulnersCom/zabbix-threat-control/issues/16).</br>
+And there's live-chat in Telegram, for technical support: [@ztcsupport](https://t.me/ztcsupport)
+
+----
+
 # Zabbix Threat Control
 
 Оur plugin transforms your Zabbix monitoring system into vulnerability, risk and security managment system for your infrastructure.
