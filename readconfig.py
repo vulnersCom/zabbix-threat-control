@@ -25,6 +25,7 @@ acknowledge_users = config.get('OPTIONAL', 'TrustedZabbixUsers', fallback='Admin
 ssh_user = config.get('OPTIONAL', 'SSHUser', fallback='root')
 
 log_file = config.get('OPTIONAL', 'logfile', fallback='/var/log/zabbix-threat-control.log')
+debug_level = config['OPTIONAL'].getint('DebugLevel', 1)
 work_dir = config.get('OPTIONAL', 'WorkDir', fallback='/opt/monitoring/zabbix-threat-control').rstrip('/')
 
 appl_name = config.get('OPTIONAL', 'HostsApplicationName', fallback='Vulnerabilities')
