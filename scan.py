@@ -35,13 +35,13 @@ parser = argparse.ArgumentParser(description='Vulners to zabbix integration tool
 
 
 parser.add_argument(
-    '--BypassZbxPush',
+    '-n', '--nopush',
     help='Bypass Zabbix-server. Don\'t push final dataset to Zabbix-server.',
     action='store_true')
 
 
 parser.add_argument(
-    '--DumpHostMatrix',
+    '-d', '--dump',
     help='Dump zabbix and vulners data to disk',
     action='store_true')
 
@@ -54,11 +54,20 @@ parser.add_argument(
 args = parser.parse_args()
 
 
-logging.basicConfig(
-    # level=logging.DEBUG,
-    level=logging.INFO,
-    filename=log_file,
-    format='%(asctime)s  %(process)d  %(levelname)s  %(message)s  [%(filename)s:%(lineno)d]')
+logger = logging.getLogger("ZTC")
+if debug_level == 0:
+    logger.setLevel(logging.ERROR)
+elif debug_level == 2:
+    logger.setLevel(logging.DEBUG)
+else:
+    logger.setLevel(logging.INFO)
+
+fh = logging.FileHandler(log_file)
+
+formatter = logging.Formatter('%(asctime)s  %(name)s  %(levelname)s  %(message)s  [%(filename)s:%(lineno)d]')
+fh.setFormatter(formatter)
+
+logger.addHandler(fh)
 
 
 # выполение комадн в шелле
@@ -83,9 +92,9 @@ def os_data_valid(os, version, packages, host_name):
         if len(os) > 0 and float(version) != 0 and len(packages) > 5:
             return True
     except Exception as e:
-        logging.warning('Excluded {}. Exception: {}'.format(host_name, e))
+        logger.warning('Excluded {}. Exception: {}'.format(host_name, e))
         return False
-    logging.info('Excluded {}. ОS: {}, Version: {}, Packages: {}'.format(host_name, os, version, len(packages)))
+    logger.info('Excluded {}. ОS: {}, Version: {}, Packages: {}'.format(host_name, os, version, len(packages)))
     return False
 
 
@@ -101,11 +110,12 @@ def dump_load(filename):
     return obj
 
 
-logging.info('Start.')
+# logger.info('Start.')
+logger.info('Start.')
 try:
     vapi = vulners.Vulners(api_key=vuln_api_key)
 except Exception as e:
-    logging.error('Error: Used API key: {}. {} '.format(vuln_api_key, e))
+    logger.error('Error: Used API key: {}. {} '.format(vuln_api_key, e))
     exit(1)
 
 # создаем сессию в заббикс
@@ -113,14 +123,14 @@ try:
     zapi = ZabbixAPI(zbx_url, timeout=10)
     zapi.session.verify = zbx_verify_ssl
     zapi.login(zbx_user, zbx_pass)
-    logging.info('Connected to Zabbix API v.{}'.format(zapi.api_version()))
+    logger.info('Connected to Zabbix API v.{}'.format(zapi.api_version()))
 except Exception as e:
-    logging.error('Error: Can\'t connect to Zabbix API. Exception: {}'.format(e))
+    logger.error('Error: Can\'t connect to Zabbix API. Exception: {}'.format(e))
     exit(1)
 
 # Если матрица хостов есть - загружаем дамп с диска
 if os.path.exists(h_matrix_dumpfile):
-    logging.info('Found a dump of the h_matrix in {}. Loading'.format(h_matrix_dumpfile))
+    logger.info('Found a dump of the h_matrix in {}. Loading'.format(h_matrix_dumpfile))
     h_matrix = dump_load(h_matrix_dumpfile)
     total_hosts = len(h_matrix)
 else:
@@ -131,16 +141,16 @@ else:
         if args.limit is None:
             h_matrix = zapi.host.get(templated_hosts=False, templateids=tmpl_id, monitored_hosts=True, output=['hostid'])
         else:
-            logging.info('\"limit\" option is used. Fetching data from Zabbix is limited to {} hosts.'.format(args.limit))
+            logger.info('\"limit\" option is used. Fetching data from Zabbix is limited to {} hosts.'.format(args.limit))
             h_matrix = zapi.host.get(templated_hosts=False, templateids=tmpl_id, limit=args.limit, monitored_hosts=True, output=['hostid'])
     except Exception as e:
-        logging.error('Error: Can\'t get data from Zabbix. Exception: {}'.format(e))
+        logger.error('Error: Can\'t get data from Zabbix. Exception: {}'.format(e))
         exit(1)
 
     full_hosts = len(h_matrix)
-    logging.info('Received from Zabbix {} hosts for processing'.format(full_hosts))
+    logger.info('Received from Zabbix {} hosts for processing'.format(full_hosts))
 
-    logging.info('Receiving extended data about hosts from Zabbix')
+    logger.info('Receiving extended data about hosts from Zabbix')
     current_host = 0
     for h in h_matrix:
         current_host += 1
@@ -155,24 +165,24 @@ else:
             # Костыль! Вулнерс почему то не умеет обрабатывать "ol"
             h.update({'OS - Name': re.sub('ol', 'oraclelinux', h['OS - Name'])})
 
-            logging.info('[{} of {}] \"{}\". Successfully received extended data'
+            logger.info('[{} of {}] \"{}\". Successfully received extended data'
                          .format(current_host, full_hosts, h['v_name']))
         except Exception as e:
             h.update({'OS - Packages': '', 'OS - Name': '', 'OS - Version': '', 'v_name': '', 'host_name': ''})
-            logging.warning('[{} in {}] Skip, can\'t get additional data about hostid {}. Exception: {}'
+            logger.warning('[{} in {}] Skip, can\'t get additional data about hostid {}. Exception: {}'
                             .format(current_host, full_hosts, h['hostid'], e))
             continue
-    logging.info('Processed hosts: {}.'.format(current_host))
+    logger.info('Processed hosts: {}.'.format(current_host))
 
-    logging.info('Checking data from Zabbix')
+    logger.info('Checking data from Zabbix')
     # удаляем невалидные элементы данных из матрицы (там где триплет с хоста не подходящй)
     h_matrix[:] = [h for h in h_matrix if os_data_valid(h['OS - Name'], h['OS - Version'], h['OS - Packages'], h['v_name'])]
     total_hosts = len(h_matrix)
     removed_cnt = full_hosts - total_hosts
-    logging.info('After checking data from Zabbix, there are {} entries left. Removed {}'.format(total_hosts, removed_cnt))
+    logger.info('After checking data from Zabbix, there are {} entries left. Removed {}'.format(total_hosts, removed_cnt))
 
     # обогащаем матрицу данными от вулнерса
-    logging.info('Receiving the vulnerabilities from Vulners')
+    logger.info('Receiving the vulnerabilities from Vulners')
     current_host = 0
     for h in h_matrix:
         current_host += 1
@@ -181,39 +191,39 @@ else:
             vulnerabilities = vapi.audit(os=h['OS - Name'], os_version=h['OS - Version'], package=h['OS - Packages'].splitlines())
             if vulnerabilities.get('errorCode', 0) == 0:
                 h.update({'vuln_data': {'data': vulnerabilities, 'result': 'OK'}})
-                logging.info('[{} of {}] \"{}\". Successfully received data from Vulners'
+                logger.info('[{} of {}] \"{}\". Successfully received data from Vulners'
                              .format(current_host, total_hosts, h['v_name']))
             else:
                 h.update({'vuln_data': {'data': vulnerabilities, 'result': 'FAIL'}})
-                logging.info('[{} of {}] \"{}\". Can\'t receive data from Vulners. Error message: {}'
+                logger.info('[{} of {}] \"{}\". Can\'t receive data from Vulners. Error message: {}'
                              .format(current_host, total_hosts, h['v_name'], vulnerabilities.get('error', 0)))
         except Exception as e:
             h.update({'vuln_data': {'data': '', 'result': 'FAIL'}})
-            logging.warning('[{} of {}] \"{}\". Error getting data from Vulners. Exception: {}'.format(current_host, total_hosts, h['v_name'], e))
+            logger.warning('[{} of {}] \"{}\". Error getting data from Vulners. Exception: {}'.format(current_host, total_hosts, h['v_name'], e))
             continue
-    logging.info('Processed hosts: {}'.format(current_host))
+    logger.info('Processed hosts: {}'.format(current_host))
 
-    logging.info('Exclude invalid response data from Vulners')
+    logger.info('Exclude invalid response data from Vulners')
     # удаляем невалидные элементы данных из матрицы (там где ответ вулнерс не подходящй)
     h_matrix[:] = [h for h in h_matrix if h['vuln_data']['result'] == 'OK']
     removed_cnt = total_hosts - len(h_matrix)
     total_hosts = len(h_matrix)
-    logging.info('There are {} entries left. Removed: {}'.format(total_hosts, removed_cnt))
+    logger.info('There are {} entries left. Removed: {}'.format(total_hosts, removed_cnt))
 
 
-    if args.DumpHostMatrix:
+    if args.dump:
         try:
             # сохраняем дамп матрицы хостов на диск
             dump_create(h_matrix_dumpfile, h_matrix)
-            logging.info('host-matrix saved to {}'.format(h_matrix_dumpfile))
+            logger.info('host-matrix saved to {}'.format(h_matrix_dumpfile))
         except Exception as e:
-            logging.warning('Can\'t dump host-matrix to disk. Exception: {}'.format(e))
+            logger.warning('Can\'t dump host-matrix to disk. Exception: {}'.format(e))
 
 if len(h_matrix) == 0:
-    logging.info('There are no data in the host-matrix for further processing. Exit')
+    logger.info('There are no data in the host-matrix for further processing. Exit')
     exit()
 
-logging.info('Сreating an additional field in the host-matrix based on data from Vulners')
+logger.info('Сreating an additional field in the host-matrix based on data from Vulners')
 # формируем доп-поля в матрице на основе данных от вулнерса
 current_host = 0
 for h in h_matrix:
@@ -258,16 +268,16 @@ for h in h_matrix:
                   'h_packages': uniq_list(h_packages),
                   'h_bulletins': uniq_list(h_bulletins)})
 
-        logging.info('[{} of {}] \"{}\". Successfully processed'.format(current_host, total_hosts, h['v_name']))
+        logger.info('[{} of {}] \"{}\". Successfully processed'.format(current_host, total_hosts, h['v_name']))
     except Exception as e:
-        logging.warning('[{} of {}] \"{}\". Skipping. Exception: {}'.format(current_host, total_hosts, h['v_name'], e))
+        logger.warning('[{} of {}] \"{}\". Skipping. Exception: {}'.format(current_host, total_hosts, h['v_name'], e))
         continue
-logging.info('Processed hosts: {}'.format(current_host))
+logger.info('Processed hosts: {}'.format(current_host))
 
 f = open(zsender_data_file, 'w')
 f_lld = open(zsender_lld_file, 'w')
 
-logging.info('Сreating an LLD-data: CVSS-Scores and Cumulative-Fix commands')
+logger.info('Сreating an LLD-data: CVSS-Scores and Cumulative-Fix commands')
 current_host = 0
 discovery_hosts = list()
 for h in h_matrix:
@@ -282,7 +292,7 @@ for h in h_matrix:
 
         f.write('\"{}\" vulners.hosts[{}] {}\n'.format(zbx_h_hosts, h['hostid'], h['h_score']))
     except Exception as e:
-        logging.warning('[{} of {}] \"{}\". Skipping. Exception: {}'.format(current_host, total_hosts, h['v_name'], e))
+        logger.warning('[{} of {}] \"{}\". Skipping. Exception: {}'.format(current_host, total_hosts, h['v_name'], e))
         continue
 
 # преобразовываем список в однострочный json без пробелов и пишем в файл
@@ -293,7 +303,7 @@ f_lld.write('\"{}\" vulners.hosts_lld {}\n'.format(zbx_h_hosts, discovery_hosts_
 ###########################
 # ФОРМИРУЕМ МАТРИЦУ ПАКЕТОВ
 ###########################
-logging.info('Creating a matrix of vulnerable packages of all hosts')
+logger.info('Creating a matrix of vulnerable packages of all hosts')
 
 # цель - найти все хосты, на которых зааффектило этот пакет, для этого
 pkg_matrix_tmp = list()
@@ -322,19 +332,19 @@ for row in h_matrix:
             pkg_matrix_tmp.append({'pkg': p_row['name'], 'score': p_row['score'], 'bull': p_row['bull'],
                                    'fix': p_row['fix'], 'host_list': host_list})
         if len(row['h_packages']) > 0:
-            logging.info('[{} of {}] \"{}\". Successfully processed vulnerable packages: {}'.format(row_iter, total_hosts, row['v_name'], len(row['h_packages'])))
+            logger.info('[{} of {}] \"{}\". Successfully processed vulnerable packages: {}'.format(row_iter, total_hosts, row['v_name'], len(row['h_packages'])))
         else:
-            logging.info('[{} of {}] \"{}\". No vulnerable packages found'.format(row_iter, total_hosts, row['v_name']))
+            logger.info('[{} of {}] \"{}\". No vulnerable packages found'.format(row_iter, total_hosts, row['v_name']))
     except Exception as e:
-        logging.warning('[{} of {}] \"{}\". Skipping. Exception: {}'.format(row_iter, total_hosts, row['v_name'], e))
+        logger.warning('[{} of {}] \"{}\". Skipping. Exception: {}'.format(row_iter, total_hosts, row['v_name'], e))
         continue
-logging.info('Processed hosts: {}'.format(row_iter))
+logger.info('Processed hosts: {}'.format(row_iter))
 pkg_matrix = uniq_list(pkg_matrix_tmp)
-logging.info('Unique vulnerable packages processed: {}'.format(len(pkg_matrix)))
+logger.info('Unique vulnerable packages processed: {}'.format(len(pkg_matrix)))
 
 
 # формируем пакет LLD-данных
-logging.info('Сreating an LLD-data for package monitoring')
+logger.info('Сreating an LLD-data for package monitoring')
 
 discovery_pkg = list()
 # для каждого бюллетеня (строки) в матрице бюллетеней строим LLD-json c кол-вом хостов, именем, баллами, влиянием
@@ -365,7 +375,7 @@ f_lld.write('\"{}\" vulners.packages_lld {}\n'.format(zbx_h_pkgs, discovery_pkg_
 ##############################
 # ФОРМИРУЕМ МАТРИЦУ БЮЛЛЕТЕНЕЙ
 ##############################
-logging.info('Creating an bulletin-matrix')
+logger.info('Creating an bulletin-matrix')
 
 bulletins_d = dict()
 full_bulletins_lst = list()
@@ -394,20 +404,20 @@ for d in h_matrix:
             full_bulletins_lst.append(bulletins_d)
 
         if len(d['h_bulletins']) > 0:
-            logging.info('[{} of {}] \"{}\". Successfully processed security bulletins: {}'.format(d_iter, total_hosts, d['v_name'], len(d['h_bulletins'])))
+            logger.info('[{} of {}] \"{}\". Successfully processed security bulletins: {}'.format(d_iter, total_hosts, d['v_name'], len(d['h_bulletins'])))
         else:
-            logging.info('[{} of {}] \"{}\". No security bulletins found'.format(d_iter, total_hosts, d['v_name']))
+            logger.info('[{} of {}] \"{}\". No security bulletins found'.format(d_iter, total_hosts, d['v_name']))
     except Exception as e:
-        logging.warning('[{} of {}] \"{}\". Skipping. Exception: {}'.format(d_iter, total_hosts, d['v_name'], e))
+        logger.warning('[{} of {}] \"{}\". Skipping. Exception: {}'.format(d_iter, total_hosts, d['v_name'], e))
         continue
-logging.info('Processed hosts: {}'.format(d_iter))
+logger.info('Processed hosts: {}'.format(d_iter))
 
 # оставляем только уникальные записи в списке (итоговая матрица)
 b_matrix = uniq_list(full_bulletins_lst)
-logging.info('Unique security bulletins processed: {}'.format(len(b_matrix)))
+logger.info('Unique security bulletins processed: {}'.format(len(b_matrix)))
 
 # формируем пакет LLD-данных
-logging.info('Сreating an LLD-data for bulletin monitoring')
+logger.info('Сreating an LLD-data for bulletin monitoring')
 
 discovery_data = list()
 # для каждого бюллетеня (строки) в матрице бюллетеней строим LLD-json c кол-вом хостов, именем, баллами, влиянием
@@ -432,7 +442,7 @@ discovery_json = (json.dumps({'data': discovery_data})).replace(': ', ':').repla
 
 f_lld.write('\"{}\" vulners.bulletins_lld {}\n'.format(zbx_h_bulls, discovery_json))
 
-logging.info('Сreating an CVSS Score-based host-lists')
+logger.info('Сreating an CVSS Score-based host-lists')
 score_list = list()
 
 host_count_table = dict((score_value, 0) for score_value in range(0, 11))
@@ -445,7 +455,7 @@ for h in h_matrix:
 if len(score_list) == 0:
     score_list = [0]
 
-logging.info('Сreating an aggregated data')
+logger.info('Сreating an aggregated data')
 # считаем аггрегированыне метрики и пишем их в файл
 agg_score_median = median(map(float, score_list))
 agg_score_mean = mean(map(float, score_list))
@@ -467,18 +477,18 @@ f_lld.close()
 push_lld_cmd = '{} -z {} -p {} -i {}'.format(z_sender_bin, zbx_server_fqdn, zbx_server_port, zsender_lld_file)
 push_cmd = '{} -z {} -p {} -i {}'.format(z_sender_bin, zbx_server_fqdn, zbx_server_port, zsender_data_file)
 
-if args.BypassZbxPush:
-    logging.info('The transfer of data to zabbix is disabled, but can be performed by commands:')
-    logging.info('{}; sleep 300; {}'.format(push_lld_cmd, push_cmd))
+if args.nopush:
+    logger.info('\"nopush\" option is used. The transfer of data to zabbix is disabled, but can be performed by commands:')
+    logger.info('{}; sleep 300; {}'.format(push_lld_cmd, push_cmd))
 else:
-    logging.info('Pushing LLD-objects to Zabbix: {}'.format(push_lld_cmd))
-    logging.info(shell(push_lld_cmd))
+    logger.info('Pushing LLD-objects to Zabbix: {}'.format(push_lld_cmd))
+    logger.info(shell(push_lld_cmd))
 
     # чтобы LLD-метрики в Zabbix успели создаться нужен небольшой таймаут
-    logging.info('sleep for 5 min')
+    logger.info('sleep for 5 min')
     sleep(300)
 
-    logging.info('Pushing data to Zabbix: {}'.format(push_cmd))
-    logging.info(shell(push_cmd))
+    logger.info('Pushing data to Zabbix: {}'.format(push_cmd))
+    logger.info(shell(push_cmd))
 
-logging.info('Work completed successfully')
+logger.info('Work completed successfully')
