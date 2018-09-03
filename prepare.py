@@ -192,7 +192,7 @@ if args.vhosts:
                              lld_key='vulners.hosts_lld',
                              item_proto_name='CVSS Score on {#H.HOST} [{#H.VNAME}]',
                              item_proto_key='vulners.hosts[{#H.ID}]',
-                             trig_proto_expr='{' + zbx_h_hosts + ':vulners.hosts[{#H.ID}].last()}>={$SCORE.MIN}',
+                             trig_proto_expr='{' + zbx_h_hosts + ':vulners.hosts[{#H.ID}].last()}>0 and {#H.SCORE}>={$SCORE.MIN}',
                              trig_proto_descr='Score {#H.SCORE}. Host = {#H.VNAME}',
                              trig_proto_url='',
                              trig_proto_comm='Cumulative fix:\r\n\r\n{#H.FIX}')
@@ -206,7 +206,7 @@ if args.vhosts:
                              lld_key='vulners.bulletins_lld',
                              item_proto_name='[{#BULLETIN.SCORE}] [{#BULLETIN.ID}] - affected hosts',
                              item_proto_key='vulners.bulletin[{#BULLETIN.ID}]',
-                             trig_proto_expr='{' + zbx_h_bulls + ':vulners.bulletin[{#BULLETIN.ID}].last()}>={$SCORE.MIN}',
+                             trig_proto_expr='{' + zbx_h_bulls + ':vulners.bulletin[{#BULLETIN.ID}].last()}>0 and {#BULLETIN.SCORE}>={$SCORE.MIN}',
                              trig_proto_descr='Impact {#BULLETIN.IMPACT}. Score {#BULLETIN.SCORE}. Affected {ITEM.LASTVALUE}. Bulletin = {#BULLETIN.ID}',
                              trig_proto_url='https://vulners.com/info/{#BULLETIN.ID}',
                              trig_proto_comm='Vulnerabilities are found on:\r\n\r\n{#BULLETIN.HOSTS}')
@@ -220,7 +220,7 @@ if args.vhosts:
                             lld_key='vulners.packages_lld',
                             item_proto_name='[{#PKG.SCORE}] [{#PKG.ID}] - affected hosts',
                             item_proto_key='vulners.pkg[{#PKG.ID}]',
-                            trig_proto_expr='{' + zbx_h_pkgs + ':vulners.pkg[{#PKG.ID}].last()}>={$SCORE.MIN}',
+                            trig_proto_expr='{' + zbx_h_pkgs + ':vulners.pkg[{#PKG.ID}].last()}>0 and {#PKG.SCORE}>={$SCORE.MIN}',
                             trig_proto_descr='Impact {#PKG.IMPACT}. Score {#PKG.SCORE}. Affected {ITEM.LASTVALUE}. Package = {#PKG.ID}',
                             trig_proto_url='https://vulners.com/info/{#PKG.URL}',
                             trig_proto_comm='Vulnerabilities are found on:\r\n\r\n{#PKG.HOSTS}\r\n----\r\n{#PKG.FIX}')
