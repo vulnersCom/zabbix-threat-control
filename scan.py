@@ -94,7 +94,7 @@ def os_data_valid(os, version, packages, host_name):
     except Exception as e:
         logger.warning('Excluded {}. Exception: {}'.format(host_name, e))
         return False
-    logger.info('Excluded {}. ОS: {}, Version: {}, Packages: {}'.format(host_name, os, version, len(packages)))
+    logger.info('Excluded {}. OS: {}, Version: {}, Packages: {}'.format(host_name, os, version, len(packages)))
     return False
 
 
