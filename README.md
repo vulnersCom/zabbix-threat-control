@@ -66,7 +66,7 @@ This can be done directly from Zabbix (using its standard functionality) either 
 **On zabbix-server host:**
 
 - python 3 (only for ztc scripts)
-- python modules: pyzabbix, jpath, requests
+- python modules: pyzabbix, jpath, requests, vulners
 - zabbix version 3.4 is required to create a custom dashboard and a custom polling schedule.
 - zabbix-sender utility for sending data to zabbix-server.
 - zabbix-get utility for sending a command to fix vulnerabilities on the server.
