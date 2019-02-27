@@ -63,3 +63,31 @@ z_sender_bin = config.get('OPTIONAL', 'ZabbixSender', fallback='zabbix_sender')
 z_get_bin = config.get('OPTIONAL', 'ZabbixGet', fallback='zabbix_get')
 
 min_cvss = config['OPTIONAL'].getint('MinCVSS', 1)
+
+z_agent_conf = config.get('OPTIONAL', 'ZabbixAgentConf', fallback='/etc/zabbix/zabbix_agentd.conf')
+with open(z_agent_conf, 'r') as f:
+    config_string = '[zabbix_agent]\n'+f.read()
+zabbix_agent_config = configparser.ConfigParser()
+zabbix_agent_config.read_string(config_string)
+tls_connect = zabbix_agent_config.get('zabbix_agent', 'TLSConnect', fallback='unencrypted')
+if tls_connect == 'unencrypted':
+    tls_options = ''
+elif tls_connect == 'psk':
+    tls_psk_identity = zabbix_agent_config.get('zabbix_agent', 'TLSPSKIdentity')
+    tls_psk_file = zabbix_agent_config.get('zabbix_agent', 'TLSPSKFile')
+    tls_options = '--tls-connect psk --tls-psk-identity ' + tls_psk_identity + ' --tls-psk-file ' + tls_psk_file
+elif tls_connect == 'cert':
+    tls_ca_file = zabbix_agent_config.get('zabbix_agent', 'TLSCAFile')
+    tls_cert_file = zabbix_agent_config.get('zabbix_agent', 'TLSCertFile')
+    tls_key_file = zabbix_agent_config.get('zabbix_agent', 'TLSKeyFile')
+    tls_crl_file = zabbix_agent_config.get('zabbix_agent', 'TLSCRLFile', fallback='')
+    tls_server_cert_issuer = zabbix_agent_config.get('zabbix_agent', 'TLSServerCertIssuer', fallback='')
+    tls_server_cert_subject = zabbix_agent_config.get('zabbix_agent', 'TLSServerCertSubject', fallback='')
+    tls_options = '--tls-connect cert --tls-ca-file ' + tls_ca_file + ' --tls-cert-file ' + tls_cert_file + ' --tls-key-file ' + tls_key_file
+    if tls_crl_file != '':
+        tls_options += ' --tls-crl-file ' + tls_crl_file
+    if tls_server_cert_issuer != '':
+        tls_options += ' --tls-server-cert-issuer ' + tls_server_cert_issuer
+    if tls_server_cert_subject != '':
+        tls_options += ' --tls-server-cert-subject ' + tls_server_cert_subject
+    

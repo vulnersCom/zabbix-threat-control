@@ -203,6 +203,9 @@ These 2 scripts above are run once a day. The start-up time is selected randomly
 - `/opt/monitoring/zabbix-threat-control/fix.py`<br />
   Script runs commands to fix vulnerabilities on servers. Executed as a remote command in the action "Vunlers" in Zabbix. 
    
+## TLS support
+
+PSK encryption is supported. The plugin uses TLS parameters specified in the zabbix-agent configuration file. Path to the file may be changed in `ztc.conf`.
 
 ## Usage
 It will be ready soon...
