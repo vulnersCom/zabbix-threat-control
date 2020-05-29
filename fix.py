@@ -37,14 +37,15 @@ def do_fix(vname, fix_cmd):
 
         h_if = zapi.hostinterface.get(hostids=h[0]['hostid'],
                                       filter={'main': '1', 'type': '1'},
-                                      output=['dns', 'ip', 'useip'])[0]
+                                      output=['dns', 'ip', 'useip','port'])[0]
         if h_if['useip'] == '1':
             h_conn = h_if['ip']
         else:
             h_conn = h_if['dns']
+        h_port = h_if['h_port']
 
         if use_zbx_agent_to_fix:
-            cmd = '{z_get_bin} -s {h_conn} -k "system.run[{fix_cmd},nowait]"'.format(z_get_bin=z_get_bin, h_conn=h_conn, fix_cmd=fix_cmd)
+            cmd = '{z_get_bin} -s {h_conn} -p h_port -k "system.run[{fix_cmd},nowait]"'.format(z_get_bin=z_get_bin, h_conn=h_conn, h_port=h_port, fix_cmd=fix_cmd)
         else:
             cmd = 'ssh {} -l {} "{}"'.format(h_conn, ssh_user, fix_cmd)
 
