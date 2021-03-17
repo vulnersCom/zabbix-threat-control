@@ -112,7 +112,7 @@ def z_host_create(zbx_host, zbx_vname, group_id, appl_name, lld_name, lld_key, i
                                                    'interfaceid': '0',
                                                    'port': ''})['itemids'][0]
         zapi.itemprototype.update(itemid=item_proto_id, applications=[appl_id])
-        zapi.triggerprototype.create(hostid=host_id, ruleid=lld_id, expression=trig_proto_expr,
+        zapi.triggerprototype.create(expression=trig_proto_expr,
                                      description=trig_proto_descr, url=trig_proto_url, manual_close=1,
                                      priority='0', comments=trig_proto_comm, status='0')
         print('Created host "{}" (id: {})\n'.format(zbx_vname, host_id))
