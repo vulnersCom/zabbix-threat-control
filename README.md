@@ -1,7 +1,7 @@
 #### :bangbang: Updated Zabbix Threat Control to version 1.3.4 :bangbang:
 💥 Update breaks the plugin's normal operation!</br>
 To make it work, please read the [Update instructions](https://github.com/vulnersCom/zabbix-threat-control/issues/16).</br>
-And there's live-chat in Telegram, for technical support: [@ztcsupport](https://t.me/ztcsupport)
+And there's live-chat in Telegram, for technical support use our Telegram live-chat: [@ztcsupport](https://t.me/ztcsupport)
 
 ----
 
@@ -126,15 +126,15 @@ This can be done directly from Zabbix (using its standard functionality) either 
 
 ## Configuration
 
-Configuration file is located here: `/opt/monitoring/zabbix-threat-control/ztc.conf`
+The configuration file is located here: `/opt/monitoring/zabbix-threat-control/ztc.conf`
 
 ### Vulners credentials
 
 To use Vulners API you need an api-key. To get it follow the steps bellow:
 - Log in to vulners.com.
-- Navigate to userinfo space https://vulners.com/userinfo.
-- Choose "API KEYS" section.
-- Select "scan" in scope menu and click "Generate new key".
+- Navigate to the userinfo space https://vulners.com/userinfo.
+- Choose the "API KEYS" section.
+- Select "scan" in the scope menu and click "Generate a new key".
 - You will get an api-key, which looks like this:
 **RGB9YPJG7CFAXP35PMDVYFFJPGZ9ZIRO1VGO9K9269B0K86K6XQQQR32O6007NUK**
 
@@ -165,23 +165,23 @@ ZabbixServerPort = 10051
 ### Zabbix entity
 
 1. To create all the necessary objects in Zabbix, run the `prepare.py` script with parameters.</br>
-`/opt/monitoring/zabbix-threat-control/prepare.py -uvtda`</br>It will verify that the zabbix-agent and zabbix-get utilities are configured correctly and create the following objects using Zabbix API:
+`/opt/monitoring/zabbix-threat-control/prepare.py -uvtda`</br>It will verify that zabbix-agent and zabbix-get utilities are configured correctly and create the following objects using Zabbix API:
    * **A template** used to collect data from servers.
    * **Zabbix hosts** for obtaining data on vulnerabilities.
-   * **An action** for run the command fixes the vulnerability.
+   * **An action** to run the command fixes the vulnerability.
    * **A dashboard** for displaying results.
-2. Using the Zabbix web interface, it is necessary to link the "Vulners OS-Report" template with the hosts that you are doing a vulnerabilities scan on.
+2. While using the Zabbix web interface, it is necessary to link the "Vulners OS-Report" template with the hosts that you are doing a vulnerabilities scan on.
 
 ### Servers that require a vulnerability scan
 
-Zabbix-agent must be able to execute remote commands. To do this, change the parameters in the zabbix-agent configuration file `/etc/zabbix/zabbix_agentd.conf`:
+Zabbix-agent must be able to execute remote commands. For this, change the parameters in the zabbix-agent configuration file `/etc/zabbix/zabbix_agentd.conf`:
 
 ```
 EnableRemoteCommands=1
 LogRemoteCommands=1
 ``` 
 
-Zabbix-agent must be able to update packages as root. To do this, add a line to the file `/etc/sudoers`:
+Zabbix-agent must be able to update packages as root. For this, add a line to the file `/etc/sudoers`:
 
 ```
 zabbix ALL=(ALL) NOPASSWD: /usr/bin/yum -y update *
@@ -191,17 +191,17 @@ zabbix ALL=(ALL) NOPASSWD: /usr/bin/apt-get --assume-yes install --only-upgrade 
 ## Execution
 
 - `/opt/monitoring/os-report/report.py`<br />
-  Script transfers the name, version and installed packages of the operating system to Zabbix.<br />
+  Transfers the name, version and installed packages of the operating system to Zabbix.<br />
   Runs with zabbix-agent on all hosts to which the template "Vulners OS-Report" is linked.
 
 - `/opt/monitoring/zabbix-threat-control/scan.py`<br />
-  Script processes raw data from zabbix and vulners and push them to the monitoring system using zabbix-sender.<br />
+  Processes raw data from zabbix and vulners and push them to the monitoring system using zabbix-sender.<br />
   Runs with zabbix-agent on the Zabbix server via the item "Service item" on the host "Vulners - Statistics".
 
-These 2 scripts above are run once a day. The start-up time is selected randomly during the installation and does not change during operation.
+The above scripts are run once a day. The start-up time is selected randomly during the installation and does not change during operation.
   
 - `/opt/monitoring/zabbix-threat-control/fix.py`<br />
-  Script runs commands to fix vulnerabilities on servers. Executed as a remote command in the action "Vunlers" in Zabbix. 
+  Runs commands to fix vulnerabilities on servers. It's executed as a remote command in the action "Vunlers" in Zabbix. 
    
 
 ## Usage
