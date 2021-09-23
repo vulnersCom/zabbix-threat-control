@@ -344,7 +344,7 @@ logger.info('Unique vulnerable packages processed: {}'.format(len(pkg_matrix)))
 
 
 # формируем пакет LLD-данных
-logger.info('Сreating an LLD-data for package monitoring')
+logger.info('Creating an LLD-data for package monitoring')
 
 discovery_pkg = list()
 # для каждого бюллетеня (строки) в матрице бюллетеней строим LLD-json c кол-вом хостов, именем, баллами, влиянием
