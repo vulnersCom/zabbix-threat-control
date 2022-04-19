@@ -109,9 +109,10 @@ This can be done directly from Zabbix (using its standard functionality) either 
 
     git clone https://github.com/vulnersCom/zabbix-threat-control.git
     mkdir -p /opt/monitoring/zabbix-threat-control
+    cp -R zabbix-threat-control/os-report /opt/monitoring/
     cp zabbix-threat-control/*.py /opt/monitoring/zabbix-threat-control/
     cp zabbix-threat-control/*.conf /opt/monitoring/zabbix-threat-control/
-    chown -R zabbix:zabbix /opt/monitoring/zabbix-threat-control
+    chown -R zabbix:zabbix /opt/monitoring/
     chmod 640 /opt/monitoring/zabbix-threat-control/*.conf
     touch /var/log/zabbix-threat-control.log
     chown zabbix:zabbix /var/log/zabbix-threat-control.log
@@ -165,7 +166,7 @@ ZabbixServerPort = 10051
 ### Zabbix entity
 
 1. To create all the necessary objects in Zabbix, run the `prepare.py` script with parameters.</br>
-`/opt/monitoring/zabbix-threat-control/prepare.py -uvtda`</br>It will verify that zabbix-agent and zabbix-get utilities are configured correctly and create the following objects using Zabbix API:
+`/opt/monitoring/zabbix-threat-control/prepare.py -uvtd`</br>It will verify that zabbix-agent and zabbix-get utilities are configured correctly and create the following objects using Zabbix API:
    * **A template** used to collect data from servers.
    * **Zabbix hosts** for obtaining data on vulnerabilities.
    * **An action** to run the command fixes the vulnerability.

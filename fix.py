@@ -8,121 +8,142 @@ Script will fix vulnerabilities.
 fix.py {HOST.HOST} {TRIGGER.ID} {EVENT.ID}
 """
 
-
-__author__ = 'samosvat'
-__version__ = '1.3.4'
+__version__ = "2.0"
 
 
+import sys
 import logging
 import subprocess
-import sys
-
+import config
 from pyzabbix import ZabbixAPI
-
-from readconfig import *
 
 
 def shell(command):
-    proc = subprocess.Popen(command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, shell=True)
-    out = proc.communicate()[0].decode('utf8')
+    proc = subprocess.Popen(
+        command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, shell=True
+    )
+    out = proc.communicate()[0].decode("utf8")
     return out
 
 
-def do_fix(vname, fix_cmd):
-    try:
-        h = zapi.host.get(filter={'name': vname}, output=['hostid'])
-        if len(h) == 0:
-            logging.warning('Can\'t find host {} in Zabbix. Skip fixing vulnerabilities on this host.'.format(vname))
-            return False
+def do_fix(visual_name, fix_cmd):
+    hosts = zapi.host.get(filter={"name": visual_name}, output=["hostid"])
+    if len(hosts) == 0:
+        logging.warning(
+            "Can't find host {} in Zabbix. Skip fixing vulnerabilities on this host".format(
+                visual_name
+            )
+        )
+        exit(1)
 
-        h_if = zapi.hostinterface.get(hostids=h[0]['hostid'],
-                                      filter={'main': '1', 'type': '1'},
-                                      output=['dns', 'ip', 'useip','port'])[0]
-        if h_if['useip'] == '1':
-            h_conn = h_if['ip']
-        else:
-            h_conn = h_if['dns']
-        h_port = h_if['h_port']
+    host_id = hosts[0]["hostid"]
+    host_interface = zapi.hostinterface.get(
+        hostids=host_id,
+        filter={"main": "1", "type": "1"},
+        output=("dns", "ip", "useip", "port"),
+    )
 
-        if use_zbx_agent_to_fix:
-            cmd = '{z_get_bin} -s {h_conn} -p h_port -k "system.run[{fix_cmd},nowait]"'.format(z_get_bin=z_get_bin, h_conn=h_conn, h_port=h_port, fix_cmd=fix_cmd)
-        else:
-            cmd = 'ssh {} -l {} "{}"'.format(h_conn, ssh_user, fix_cmd)
+    if not host_interface:
+        logging.error("Host interface for hostid {} not found".format(host_id))
+        exit(1)
 
-        logging.info(cmd)
-        out = shell(cmd)
-        logging.info(out)
-        return True
-    except Exception as e:
-        logging.info('Exception: {}'.format(e))
-        return False
+    cmd_params = {
+        "zabbix_get_bin": config.zabbix_get_bin,
+        "host_address": host_interface["ip" if int(host_interface["useip"]) else "dns"],
+        "host_port": host_interface["port"],
+        "fix_cmd": fix_cmd,
+    }
 
+    if config.use_zbx_agent_to_fix:
+        cmd = '{zabbix_get_bin} -s {host_address} -p {host_port} -k "system.run[{fix_cmd},nowait]"'.format(
+            **cmd_params
+        )
+    else:
+        cmd = 'ssh {} -l {} "{}"'.format(cmd_params["host_address"], config.ssh_user, fix_cmd)
 
-logging.basicConfig(
-    # level=logging.DEBUG,
-    level=logging.INFO,
-    filename=log_file,
-    format='%(asctime)s  %(process)d  %(levelname)s  %(message)s  [%(filename)s:%(lineno)d]')
-
-triggered_host = sys.argv[1]
-trigger_id = sys.argv[2]
-event_id = sys.argv[3]
-
-logging.info('Getting Started with the event: {}/tr_events.php?triggerid={}&eventid={}'
-             .format(zbx_url, trigger_id, event_id))
+    logging.info(cmd)
+    out = shell(cmd)
+    logging.info(out)
 
 
-try:
-    zapi = ZabbixAPI(zbx_url, timeout=10)
-    zapi.session.verify = zbx_verify_ssl
-    zapi.login(zbx_user, zbx_pass)
-    logging.info('Connected to Zabbix API v.{}'.format(zapi.api_version()))
-except Exception as e:
-    logging.info('Error: Can\'t connect to Zabbix API. Exception: {}'.format(e))
-    exit(1)
+def run():
+    _, triggered_host, trigger_id, event_id, *__ = sys.argv
 
+    logging.info(
+        "Getting Started with the event: {}/tr_events.php?triggerid={}&eventid={}".format(
+            config.zbx_url, trigger_id, event_id
+        )
+    )
 
-try:
-    ack = zapi.event.get(eventids=event_id, select_acknowledges=['alias', 'message', 'action'],
-                         output=['alias', 'message', 'action'])
-    ack_alias = ack[0]['acknowledges'][0]['alias']
-    ack_action = ack[0]['acknowledges'][0]['action']
-    if ack_alias not in acknowledge_users:
-        logging.info('Not trusted user in acknowledge: {}. Skipping this request to fix.'.format(ack_alias))
+    event = zapi.event.get(
+        eventids=event_id,
+        select_acknowledges=["username", "action"],
+        output=["username", "action"],
+    )
+
+    if not event:
+        logging.error("Event {} not found".format(event_id))
+        exit(1)
+
+    acknowledges = event[0]["acknowledges"][0]
+
+    ack_alias = acknowledges["username"]
+    ack_action = acknowledges["action"]
+
+    if ack_alias not in config.acknowledge_users:
+        logging.info(
+            "Not trusted user in acknowledge: {}. Skipping this request to fix".format(
+                ack_alias
+            )
+        )
         exit(0)
-    tg = zapi.trigger.get(triggerids=trigger_id, output='extend')[0]
-except Exception as e:
-    logging.error('Error. Exception: {}'.format(e))
-    exit(1)
+
+    trigger = zapi.trigger.get(triggerids=trigger_id, output="extend")[0]
+    trigger_description = trigger["description"]
+    trigger_comment = trigger["comments"]
+
+    if ack_action == "1":
+        logging.info(
+            'The "{}" trigger was manually closed by the "{}" user. No further action required'.format(
+                trigger_description, ack_alias
+            )
+        )
+        exit(0)
+
+    if triggered_host == config.hosts_host:
+        hostname = trigger_description[trigger_description.rfind(" = ") + 3 :]
+        fix = trigger_comment[trigger_comment.rfind("\r\n\r\n") + 4 :]
+        do_fix(hostname, fix)
+    elif triggered_host == config.packages_host:
+        _, hosts, __, fix = filter(lambda x: x.strip(), trigger_comment.split('\r\n'))
+        hosts = hosts.splitlines()
+        hosts_cnt = len(hosts)
+        for idx, hostname in enumerate(hosts, 1):
+            logging.info(
+                "[{idx} of {hosts_cnt}] {hostname}".format(
+                    idx=idx, hosts_cnt=hosts_cnt, hostname=hostname
+                )
+            )
+            do_fix(hostname, fix)
+    else:
+        logging.info(
+            "Host {} that triggered the trigger does not match the required: {} or {}".format(
+                triggered_host, config.packages_host, config.hosts_host
+            )
+        )
 
 
-tg_desc = tg['description']
-tg_comm = tg['comments']
+if __name__ == "__main__":
 
+    logging.basicConfig(
+        level=logging.INFO,
+        filename=config.log_file,
+        format="%(asctime)s  %(process)d  %(levelname)s  %(message)s  [%(filename)s:%(lineno)d]",
+    )
 
-if ack_action == '1':
-    logging.info('The \"{}\" trigger was manually closed by the \"{}\" user. No further action required'
-                 .format(tg_desc, ack_alias))
-    exit(0)
-
-
-if triggered_host == zbx_h_hosts:
-    h_name = tg_desc[tg_desc.rfind(' = ') + 3:]
-    fix = tg_comm[tg_comm.rfind('\r\n\r\n') + 4:]
-    do_fix(h_name, fix)
-elif triggered_host == zbx_h_pkgs:
-    pkg_name = tg_desc[tg_desc.rfind(' = ') + 3:].split()[0]
-    tg_comm_tmp = tg_comm[tg_comm.rfind('\r\n\r\n') + 4:].split('\r\n----\r\n')
-    hosts = tg_comm_tmp[0].splitlines()
-    fix = tg_comm_tmp[1]
-    current_h = 0
-    total_h = len(hosts)
-    for h_name in hosts:
-        current_h += 1
-        logging.info('[{current_h} in {total_h}] {h_name}'.format(current_h=current_h, total_h=total_h, h_name=h_name))
-        do_fix(h_name, fix)
-else:
-    logging.info('Host {} that triggered the trigger does not match the required: {} or {}'
-                 .format(triggered_host, zbx_h_pkgs, zbx_h_hosts))
-
-logging.info('End')
+    zapi = ZabbixAPI(config.zbx_url, timeout=10)
+    zapi.session.verify = config.zbx_verify_ssl
+    zapi.login(config.zbx_user, config.zbx_pwd)
+    logging.info("Connected to Zabbix API v.{}".format(zapi.api_version()))
+    run()
+    logging.info("End")
