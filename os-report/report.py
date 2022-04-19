@@ -1,63 +1,53 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-__author__ = 'videns'
+#!/usr/bin/env python3
+
+import sys
 import inspect
 import pkgutil
-import json
-import os
-import sys
-import scanModules
+import scan_modules
 
 
-class scannerEngine():
-    def __init__(self, sshPrefix=None):
-        self.osInstanceClasses = self.getInstanceClasses()
-        self.instance = self.__getInstance(sshPrefix)
+class ScannerEngine:
+    def __init__(self, ssh_prefix=None):
+        self.os_instance_classes = self.get_instance_classes()
+        self.instance = self.__get_instance(ssh_prefix)
 
-    def getInstanceClasses(self):
-        self.detectors = None
+    @staticmethod
+    def get_instance_classes():
         members = set()
-        for modPath, modName, isPkg in pkgutil.iter_modules(scanModules.__path__):
-            #find all classed inherited from scanner.osDetect.ScannerInterface in all files
-            members = members.union(inspect.getmembers(__import__('%s.%s' % ('scanModules',modName), fromlist=['scanModules']),
-                                         lambda member:inspect.isclass(member)
-                                                       and issubclass(member, scanModules.osDetect.ScannerInterface)
-                                                       and member.__module__ == '%s.%s' % ('scanModules',modName)
-                                                       and member != scanModules.osDetect.ScannerInterface))
+        for module_path, module_name, is_pkg in pkgutil.iter_modules(scan_modules.__path__):
+            members = members.union(
+                inspect.getmembers(
+                    __import__('%s.%s' % ('scan_modules', module_name), fromlist=['scan_modules']),
+                    lambda member: (
+                            inspect.isclass(member) and
+                            issubclass(member, scan_modules.os_detect.ScannerInterface) and
+                            member.__module__ == '%s.%s' % ('scan_modules', module_name) and
+                            member != scan_modules.os_detect.ScannerInterface
+                    )
+                )
+            )
+
         return members
 
-    def getInstance(self):
-        return self.instance
-
-    def __getInstance(self,sshPrefix):
-        inited = [instance[1](sshPrefix) for instance in self.osInstanceClasses]
+    def __get_instance(self, ssh_prefix):
+        inited = [instance[1](ssh_prefix) for instance in self.os_instance_classes]
         if not inited:
             raise Exception("No OS Detection classes found")
-        osInstance = max(inited, key=lambda x:x.osDetectionWeight)
-        if osInstance.osDetectionWeight:
-            return osInstance
+        os_instance = max(inited, key=lambda x: x.os_detection_weight)
+        if os_instance.os_detection_weight:
+            return os_instance
 
-    def auditSystem(self):
-        instance = self.getInstance()
-
+    def audit_system(self):
         if len(sys.argv) < 2:
-            return instance
+            return self.instance
         elif sys.argv[1] == 'os':
-            print(instance.osFamily)
+            print(self.instance.os_family)
         elif sys.argv[1] == 'version':
-            print(instance.osVersion)
+            print(self.instance.os_version)
         elif sys.argv[1] == 'package':
-            print(instance.getPkg())
+            print(self.instance.get_pkg())
+        return self.instance
 
-        return instance
-
-class agentEngine():
-    def __init__(self):
-        self.host = scannerEngine()
-
-    def main(self):
-        self.host.auditSystem()
 
 if __name__ == "__main__":
-    agent = agentEngine()
-    agent.main()
+    ScannerEngine().audit_system()
