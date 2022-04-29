@@ -431,9 +431,9 @@ def create_dashboard():
         {
             "type": "problems",
             "name": config.bulletins_name,
-            "x": "5",
-            "y": "7",
-            "width": "7",
+            "x": "8",
+            "y": "8",
+            "width": "8",
             "height": "8",
             "fields": [
                 {"type": "0", "name": "rf_rate", "value": "900"},
@@ -446,10 +446,10 @@ def create_dashboard():
         {
             "type": "problems",
             "name": config.packages_name,
-            "x": "5",
+            "x": "8",
             "y": "0",
-            "width": "7",
-            "height": "7",
+            "width": "8",
+            "height": "8",
             "fields": [
                 {"type": "0", "name": "rf_rate", "value": "600"},
                 {"type": "0", "name": "show", "value": "3"},
@@ -462,8 +462,8 @@ def create_dashboard():
             "type": "problems",
             "name": config.hosts_name,
             "x": "0",
-            "y": "7",
-            "width": "5",
+            "y": "8",
+            "width": "8",
             "height": "8",
             "fields": [
                 {"type": "0", "name": "rf_rate", "value": "600"},
@@ -476,10 +476,10 @@ def create_dashboard():
         {
             "type": "graph",
             "name": MEDIAN_GRAPH_NAME,
-            "x": "2",
-            "y": "0",
-            "width": "3",
-            "height": "7",
+            "x": "0",
+            "y": "4",
+            "width": "8",
+            "height": "4",
             "fields": [
                 {"type": "0", "name": "rf_rate", "value": "600"},
                 {"type": "0", "name": "show_legend", "value": "0"},
@@ -491,8 +491,8 @@ def create_dashboard():
             "name": SCORE_GRAPH_NAME,
             "x": "0",
             "y": "0",
-            "width": "2",
-            "height": "7",
+            "width": "8",
+            "height": "4",
             "fields": [
                 {"type": "0", "name": "rf_rate", "value": "600"},
                 {"type": "0", "name": "show_legend", "value": "0"},
