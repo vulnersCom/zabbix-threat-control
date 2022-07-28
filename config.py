@@ -9,6 +9,7 @@ config = configparser.ConfigParser()
 config.read('/opt/monitoring/zabbix-threat-control/ztc.conf')
 
 vuln_api_key = config.get('MANDATORY', 'VulnersApiKey', fallback=None)
+vuln_proxy_host = config.get('OPTIONAL', 'VulnersProxyHost', fallback=None)
 
 zbx_url = config.get('OPTIONAL', 'ZabbixFrontUrl', fallback='http://localhost')
 zbx_user = config.get('MANDATORY', 'ZabbixApiUser', fallback=None)
