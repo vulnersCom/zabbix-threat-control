@@ -33,6 +33,8 @@ class Scan:
     def __init__(self):
         logger.info("Scan running")
         self.vapi = vulners.VulnersApi(api_key=config.vuln_api_key)
+        if config.vuln_proxy_host:
+            self.vapi._server_url = config.vuln_proxy_host
         self.zapi = ZabbixAPI(config.zbx_url, timeout=10)
         self.zapi.session.verify = config.zbx_verify_ssl
         self.zapi.login(config.zbx_user, config.zbx_pwd)
