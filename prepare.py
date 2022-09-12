@@ -218,10 +218,10 @@ def create_hosts():
     host_group_id = get_zabbix_obj('hostgroup', {"name": config.group_name}, 'groupid')
     if not host_group_id:
         print('Created host group "{}"\n'.format(config.group_name))
-        host_group_id = zapi.hostgroup.create(name=config.group_name)
+        host_group_id = zapi.hostgroup.create(name=config.group_name)['groupids']
     else:
         print('Host group "{}" already exists. Use this group\n'.format(config.group_name))
-    host_group_id = host_group_id[0]["groupid"]
+        host_group_id = host_group_id[0]["groupid"]
 
     if zbx_version < 5.4:
         expression = "{{{zabbix_host}:{zabbix_host}[{{{id}}}].last()}} > 0 and {{{score}}} >= {{$SCORE.MIN}}"
@@ -554,10 +554,11 @@ def create_template():
                 config.template_name, template_id, bkp_template_name
             )
         )
-
-    template_group_id = zapi.hostgroup.get(
-        filter={"name": config.template_group_name}, output=["groupid"]
-    )[0]["groupid"]
+    if zbx_version >= 6.2:
+        template_group_id = zapi.templategroup.get(filter={"name": config.template_group_name}, output=["groupid"])
+    else:
+        template_group_id = zapi.hostgroup.get(filter={"name": config.template_group_name}, output=["groupid"])
+    template_group_id = template_group_id[0]["groupid"]
 
     template_id = zapi.template.create(
         groups={"groupid": template_group_id},
