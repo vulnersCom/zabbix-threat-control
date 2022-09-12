@@ -17,6 +17,7 @@ import sys
 import argparse
 import subprocess
 import config
+from time import sleep
 from random import randint
 from datetime import datetime, timedelta
 from pyzabbix import ZabbixAPI
@@ -219,6 +220,7 @@ def create_hosts():
     if not host_group_id:
         print('Created host group "{}"\n'.format(config.group_name))
         host_group_id = zapi.hostgroup.create(name=config.group_name)['groupids']
+        sleep(5)    # wait until group created
     else:
         print('Host group "{}" already exists. Use this group\n'.format(config.group_name))
         host_group_id = host_group_id[0]["groupid"]
