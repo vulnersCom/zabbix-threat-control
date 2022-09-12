@@ -219,7 +219,7 @@ def create_hosts():
     host_group_id = get_zabbix_obj('hostgroup', {"name": config.group_name}, 'groupid')
     if not host_group_id:
         print('Created host group "{}"\n'.format(config.group_name))
-        host_group_id = zapi.hostgroup.create(name=config.group_name)['groupids']
+        host_group_id = zapi.hostgroup.create(name=config.group_name)['groupids'][0]
         sleep(5)    # wait until group created
     else:
         print('Host group "{}" already exists. Use this group\n'.format(config.group_name))
