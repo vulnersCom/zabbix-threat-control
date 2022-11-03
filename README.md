@@ -92,8 +92,8 @@ This can be done directly from Zabbix (using its standard functionality) either 
 
 ### Debian and other debian-based
 
-    wget https://repo.vulners.com/debian/vulners-repo.deb
-    dpkg -i vulners-repo.deb
+    wget https://repo.vulners.com/vulners-repo-py3.deb
+    dpkg -i vulners-repo-py3.deb
 
 **On zabbix-server host:**
 
