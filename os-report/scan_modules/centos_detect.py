@@ -30,7 +30,7 @@ class RpmBasedDetect(LinuxDetect):
 
         version = self.execute_cmd("cat /etc/centos-release")
         if version:
-            os_version = re.search(r"\s+(\d+)\.", version).group(1)
+            os_version = re.search(r"\s+\(?(\d+)\.", version).group(1)
             os_family = "centos"
             os_detection_weight = 70
             return os_version, os_family, os_detection_weight
