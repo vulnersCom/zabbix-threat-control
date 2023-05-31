@@ -10,7 +10,7 @@ Script will create these objects in Zabbix using the API:
     - Action; for run the command fixes the vulnerability.
 """
 
-__version__ = "2.0"
+__version__ = "2.1"
 
 
 import sys

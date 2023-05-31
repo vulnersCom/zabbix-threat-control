@@ -8,7 +8,7 @@ Script will fix vulnerabilities.
 fix.py {HOST.HOST} {TRIGGER.ID} {EVENT.ID}
 """
 
-__version__ = "2.0"
+__version__ = "2.1"
 
 
 import sys
