@@ -156,8 +156,7 @@ def create_zbx_host(
             "value_type": "0",
             "trapper_hosts": "",
             "units": "",
-            "interfaceid": "0",
-            "port": "",
+            "interfaceid": "0"
         }
     )
 
