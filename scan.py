@@ -64,10 +64,10 @@ class Scan:
     @staticmethod
     def verify_os_data(os_name, os_version, os_packages, name, *args, **kwargs):
         try:
-            if os_name and float(os_version) != 0. and len(os_packages) > 5:
+            if os_name and os_version != "0.0" and len(os_packages) > 5:
                 return True
-        except Exception as e:
-            logger.warning("Excluded {}. Exception: {}".format(name, e))
+        except Exception as err:
+            logger.warning("Excluded {}. Exception: {}".format(name, err))
             return False
         logger.info(
             "Excluded {}. OS: {}, Version: {}, Packages: {}".format(
