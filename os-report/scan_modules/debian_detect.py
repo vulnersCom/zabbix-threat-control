@@ -58,5 +58,5 @@ class DebianBasedDetect(LinuxDetect):
     def get_pkg(self):
         return self.execute_cmd(
             "dpkg-query -W -f='${Status} ${Package} ${Version} ${Architecture}\\n'| "
-            'awk \'($1 == "install") && ($2 == "ok") {print $4" "$5" "$6}\''
+            'awk \'($1 == "install" || $1 == "hold") && ($2 == "ok") {print $4" "$5" "$6}\''
         )
