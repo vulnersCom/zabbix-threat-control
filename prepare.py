@@ -138,9 +138,7 @@ def create_zbx_host(
         hostid=host_id,
         name=lld_name,
         key_=lld_key,
-        value_type="4",
         trapper_hosts="",
-        units="",
         lifetime="0",
     )["itemids"][0]
 
