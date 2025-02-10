@@ -64,7 +64,7 @@ class Scan:
     @staticmethod
     def verify_os_data(os_name, os_version, os_packages, name, *args, **kwargs):
         try:
-            if os_name and os_version != "0.0" and len(os_packages) > 5:
+            if os_name and (os_version != "0.0") and len(os_packages) > 5 and (not ("report.py" in os_packages)):
                 return True
         except Exception as err:
             logger.warning("Excluded {}. Exception: {}".format(name, err))
@@ -117,6 +117,12 @@ class Scan:
     def update_with_vulners_data(self):
         logger.info("Receiving the vulnerabilities from Vulners")
         for idx, host in enumerate(self.hosts, 1):
+            logger.info(
+               'processing host {}'.format(
+                    host["name"]
+                )
+            )            
+
             vulnerabilities = self.vapi.os_audit(
                 os=host["os_name"],
                 version=host["os_version"],
@@ -136,7 +142,7 @@ class Scan:
                         idx,
                         self.total_hosts_cnt,
                         host["name"],
-                        vulnerabilities.get("error", 0),
+                        vulnerabilities.get("error", 0)
                     )
                 )
 
