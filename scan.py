@@ -2,7 +2,7 @@
 
 """Zabbix vulnerability assessment plugin."""
 
-__version__ = "2.1"
+__version__ = "2.2"
 
 import os
 import re
@@ -42,7 +42,9 @@ class Scan:
         logger.info("Connected to Zabbix API v.{}".format(self.zapi.api_version()))
 
         if self.total_hosts_cnt == 0:
-            logger.info("There are no data in the host-matrix for further processing. Exit")
+            logger.info(
+                "There are no data in the host-matrix for further processing. Exit"
+            )
             exit()
 
     @staticmethod
@@ -88,12 +90,18 @@ class Scan:
 
     def get_or_create_hosts_matrix(self):
         if os.path.exists(self.hosts_dump_path):
-            logger.info("Found a dump of the h_matrix in {}. Loading".format(self.hosts_dump_path))
+            logger.info(
+                "Found a dump of the h_matrix in {}. Loading".format(
+                    self.hosts_dump_path
+                )
+            )
             self.hosts = self.read_hosts_dump()
         self.create_hosts_matrix()
 
     def update_with_zabbix_data(self):
-        logger.info("Received from Zabbix {} hosts for processing".format(self.total_hosts_cnt))
+        logger.info(
+            "Received from Zabbix {} hosts for processing".format(self.total_hosts_cnt)
+        )
         logger.info("Receiving extended data about hosts from Zabbix")
 
         for idx, host in enumerate(self.hosts, 1):
@@ -103,7 +111,7 @@ class Scan:
                 output=["name", "lastvalue"],
             )
             for item in items:
-                name = item["name"].replace('-', '_').replace(' ', '').lower()
+                name = item["name"].replace("-", "_").replace(" ", "").lower()
                 host.update({name: item["lastvalue"]})
 
             host.update({"os_name": re.sub("^ol$", "oraclelinux", host["os_name"])})
@@ -123,14 +131,18 @@ class Scan:
                 packages=host["os_packages"].splitlines(),
             )
             if vulnerabilities.get("errorCode", 0) == 0:
-                host.update({"vulners_data": {"data": vulnerabilities, "success": True}})
+                host.update(
+                    {"vulners_data": {"data": vulnerabilities, "success": True}}
+                )
                 logger.info(
                     '[{} of {}] "{}". Successfully received data from Vulners'.format(
                         idx, self.total_hosts_cnt, host["name"]
                     )
                 )
             else:
-                host.update({"vulners_data": {"data": vulnerabilities, "success": False}})
+                host.update(
+                    {"vulners_data": {"data": vulnerabilities, "success": False}}
+                )
                 logger.info(
                     '[{} of {}] "{}". Can\'t receive data from Vulners. Error message: {}'.format(
                         idx,
@@ -141,7 +153,9 @@ class Scan:
                 )
 
     def create_hosts_matrix(self):
-        template_id = self.zapi.template.get(filter={"host": config.template_host})[0]["templateid"]
+        template_id = self.zapi.template.get(filter={"host": config.template_host})[0][
+            "templateid"
+        ]
         if args.limit:
             logger.info(
                 '"limit" option is used. Fetching data from Zabbix is limited to {} hosts.'.format(
@@ -153,7 +167,7 @@ class Scan:
             templateids=template_id,
             monitored_hosts=True,
             output=["hostid", "host", "name"],
-            limit=args.limit
+            limit=args.limit,
         )
 
         self.total_hosts_cnt = len(self.hosts)
@@ -173,12 +187,16 @@ class Scan:
         self.update_with_vulners_data()
 
         logger.info("Exclude invalid response data from Vulners")
-        self.hosts = list(filter(lambda host: host["vulners_data"]["success"], self.hosts))
+        self.hosts = list(
+            filter(lambda host: host["vulners_data"]["success"], self.hosts)
+        )
 
         removed_hosts_cnt = self.total_hosts_cnt - len(self.hosts)
         self.total_hosts_cnt = len(self.hosts)
         logger.info(
-            "There are {} entries left. Removed: {}".format(self.total_hosts_cnt, removed_hosts_cnt)
+            "There are {} entries left. Removed: {}".format(
+                self.total_hosts_cnt, removed_hosts_cnt
+            )
         )
 
     def write_score_data(self):
@@ -198,20 +216,26 @@ class Scan:
                 host_bulletins.append({"name": bulletin_id, "score": score})
 
                 package = host_packages.setdefault(package_name, {})
-                if package.get('score') is None or package['score'] < score:
-                    package.update({
-                        "name": package_name,
-                        "score": score,
-                        "fix": fix,
-                        "bulletin_id": bulletin_id
-                    })
+                if package.get("score") is None or package["score"] < score:
+                    package.update(
+                        {
+                            "name": package_name,
+                            "score": score,
+                            "fix": fix,
+                            "bulletin_id": bulletin_id,
+                        }
+                    )
 
-            host.update({
-                "cumulative_fix": vulners_data["data"]["cumulativeFix"].replace(",", ""),
-                "score": vulners_data["data"]["cvss"]["score"],
-                "packages": list(host_packages.values()),
-                "bulletins": self.uniq_list_of_dicts(host_bulletins),
-            })
+            host.update(
+                {
+                    "cumulative_fix": vulners_data["data"]["cumulativeFix"].replace(
+                        ",", ""
+                    ),
+                    "score": vulners_data["data"]["cvss"]["score"],
+                    "packages": list(host_packages.values()),
+                    "bulletins": self.uniq_list_of_dicts(host_bulletins),
+                }
+            )
 
             logger.info(
                 '[{} of {}] "{}". Successfully processed'.format(
@@ -223,20 +247,30 @@ class Scan:
         discovery_hosts = []
 
         for idx, host in enumerate(self.hosts, 1):
-            discovery_hosts.append({
-                "{#H.VNAME}": host["name"],
-                "{#H.HOST}": host["host"],
-                "{#H.ID}": host["hostid"],
-                "{#H.FIX}": host["cumulative_fix"],
-                "{#H.SCORE}": host["score"],
-            })
+            discovery_hosts.append(
+                {
+                    "{#H.VNAME}": host["name"],
+                    "{#H.HOST}": host["host"],
+                    "{#H.ID}": host["hostid"],
+                    "{#H.FIX}": host["cumulative_fix"],
+                    "{#H.SCORE}": host["score"],
+                }
+            )
 
-            self.data_file.write('"{}" vulners.hosts[{}] {}\n'.format(config.hosts_host, host["hostid"], host["score"]))
+            self.data_file.write(
+                '"{}" vulners.hosts[{}] {}\n'.format(
+                    config.hosts_host, host["hostid"], host["score"]
+                )
+            )
 
-        discovery_hosts_json = json.dumps({"data": discovery_hosts}, separators=(',', ':'))
+        discovery_hosts_json = json.dumps(
+            {"data": discovery_hosts}, separators=(",", ":")
+        )
 
         self.lld_file.write(
-            '"{}" vulners.hosts_lld {}\n'.format(config.hosts_host, discovery_hosts_json)
+            '"{}" vulners.hosts_lld {}\n'.format(
+                config.hosts_host, discovery_hosts_json
+            )
         )
 
     def write_packages_data(self):
@@ -247,18 +281,22 @@ class Scan:
         for idx, host in enumerate(self.hosts, 1):
             packages = host.pop("packages", [])
             for package in packages:
-                pkg = pkg_matrix.setdefault(package['name'], {
-                    "name": package["name"],
-                    "score": package["score"],
-                    "bulletin_id": package["bulletin_id"],
-                    "fix": package["fix"],
-                    "host_list": [],
-                })
-                if host['name'] not in pkg['host_list']:
-                    pkg['host_list'].append(host['name'])
+                pkg = pkg_matrix.setdefault(
+                    package["name"],
+                    {
+                        "name": package["name"],
+                        "score": package["score"],
+                        "bulletin_id": package["bulletin_id"],
+                        "fix": package["fix"],
+                        "host_list": [],
+                    },
+                )
+                if host["name"] not in pkg["host_list"]:
+                    pkg["host_list"].append(host["name"])
             logger.info(
-                '[{} of {}] \"{}\". Successfully processed vulnerable packages: {}'.format(
-                    idx, self.total_hosts_cnt, host['name'], len(packages))
+                '[{} of {}] "{}". Successfully processed vulnerable packages: {}'.format(
+                    idx, self.total_hosts_cnt, host["name"], len(packages)
+                )
             )
         pkg_matrix = list(pkg_matrix.values())
 
@@ -292,24 +330,29 @@ class Scan:
                 }
             )
 
-        discovery_pkg_json = json.dumps({"data": discovery_pkg}, separators=(',', ':'))
+        discovery_pkg_json = json.dumps({"data": discovery_pkg}, separators=(",", ":"))
 
-        self.lld_file.write('"{}" vulners.packages_lld {}\n'.format(config.packages_host, discovery_pkg_json))
+        self.lld_file.write(
+            '"{}" vulners.packages_lld {}\n'.format(
+                config.packages_host, discovery_pkg_json
+            )
+        )
 
     def write_bulletins_data(self):
         logger.info("Creating an bulletin-matrix")
         bulletin_matrix = {}
         for host in self.hosts:
             for bulletin in host["bulletins"]:
-                bulletin_hosts = bulletin_matrix.setdefault(bulletin['name'], {
-                    'bulletin': bulletin,
-                    'host_list': []
-                })
-                if host['name'] not in bulletin_hosts['host_list']:
-                    bulletin_hosts['host_list'].append(host['name'])
+                bulletin_hosts = bulletin_matrix.setdefault(
+                    bulletin["name"], {"bulletin": bulletin, "host_list": []}
+                )
+                if host["name"] not in bulletin_hosts["host_list"]:
+                    bulletin_hosts["host_list"].append(host["name"])
         bulletin_matrix = list(bulletin_matrix.values())
 
-        logger.info("Unique security bulletins processed: {}".format(len(bulletin_matrix)))
+        logger.info(
+            "Unique security bulletins processed: {}".format(len(bulletin_matrix))
+        )
         logger.info("Creating an LLD-data for bulletin monitoring")
 
         discovery_data = []
@@ -336,9 +379,11 @@ class Scan:
                 }
             )
 
-        discovery_json = json.dumps({"data": discovery_data}, separators=(',', ':'))
+        discovery_json = json.dumps({"data": discovery_data}, separators=(",", ":"))
         self.lld_file.write(
-            '"{}" vulners.bulletins_lld {}\n'.format(config.bulletins_host, discovery_json)
+            '"{}" vulners.bulletins_lld {}\n'.format(
+                config.bulletins_host, discovery_json
+            )
         )
 
     def write_cvss_and_aggregation_data(self):
@@ -366,11 +411,31 @@ class Scan:
                     config.statistics_host, intScore, host_count_table.get(intScore)
                 )
             )
-        self.data_file.write('"{}" vulners.TotalHosts {}\n'.format(config.statistics_host, self.total_hosts_cnt))
-        self.data_file.write('"{}" vulners.scoreMedian {}\n'.format(config.statistics_host, agg_score_median))
-        self.data_file.write('"{}" vulners.scoreAverage {}\n'.format(config.statistics_host, agg_score_mean))
-        self.data_file.write('"{}" vulners.scoreMaximum {}\n'.format(config.statistics_host, agg_score_max))
-        self.data_file.write('"{}" vulners.scoreMinimum {}\n'.format(config.statistics_host, agg_score_min))
+        self.data_file.write(
+            '"{}" vulners.TotalHosts {}\n'.format(
+                config.statistics_host, self.total_hosts_cnt
+            )
+        )
+        self.data_file.write(
+            '"{}" vulners.scoreMedian {}\n'.format(
+                config.statistics_host, agg_score_median
+            )
+        )
+        self.data_file.write(
+            '"{}" vulners.scoreAverage {}\n'.format(
+                config.statistics_host, agg_score_mean
+            )
+        )
+        self.data_file.write(
+            '"{}" vulners.scoreMaximum {}\n'.format(
+                config.statistics_host, agg_score_max
+            )
+        )
+        self.data_file.write(
+            '"{}" vulners.scoreMinimum {}\n'.format(
+                config.statistics_host, agg_score_min
+            )
+        )
 
     def push_data(self):
         push_lld_cmd = "{} -z {} -p {} -i {}".format(
@@ -404,8 +469,8 @@ class Scan:
         logger.info("Work completed successfully")
 
     def open_files(self):
-        self.data_file = open(self.data_file_path, 'w')
-        self.lld_file = open(self.lld_file_path, 'w')
+        self.data_file = open(self.data_file_path, "w")
+        self.lld_file = open(self.lld_file_path, "w")
 
     def close_files(self):
         self.data_file.close()
@@ -428,7 +493,7 @@ class Scan:
         self.push_data()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Vulners to zabbix integration tool")
     parser.add_argument(
         "-n",

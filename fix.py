@@ -8,7 +8,7 @@ Script will fix vulnerabilities.
 fix.py {HOST.HOST} {TRIGGER.ID} {EVENT.ID}
 """
 
-__version__ = "2.1"
+__version__ = "2.2"
 
 
 import sys
@@ -59,7 +59,9 @@ def do_fix(visual_name, fix_cmd):
             **cmd_params
         )
     else:
-        cmd = 'ssh {} -l {} "{}"'.format(cmd_params["host_address"], config.ssh_user, fix_cmd)
+        cmd = 'ssh {} -l {} "{}"'.format(
+            cmd_params["host_address"], config.ssh_user, fix_cmd
+        )
 
     logging.info(cmd)
     out = shell(cmd)
@@ -115,7 +117,7 @@ def run():
         fix = trigger_comment[trigger_comment.rfind("\r\n\r\n") + 4 :]
         do_fix(hostname, fix)
     elif triggered_host == config.packages_host:
-        _, hosts, __, fix = filter(lambda x: x.strip(), trigger_comment.split('\r\n'))
+        _, hosts, __, fix = filter(lambda x: x.strip(), trigger_comment.split("\r\n"))
         hosts = hosts.splitlines()
         hosts_cnt = len(hosts)
         for idx, hostname in enumerate(hosts, 1):
