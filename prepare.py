@@ -10,7 +10,7 @@ Script will create these objects in Zabbix using the API:
     - Action; for run the command fixes the vulnerability.
 """
 
-__version__ = "2.1"
+__version__ = "2.2"
 
 
 import sys
@@ -105,14 +105,16 @@ def create_zbx_host(
     trig_proto_comment,
 ):
 
-    host_id = get_zabbix_obj('host', {"host": host, "name": name}, 'hostid')
+    host_id = get_zabbix_obj("host", {"host": host, "name": name}, "hostid")
     if host_id:
         host_id = host_id[0]["hostid"]
         bkp_host = host + ".bkp-" + timestamp
         bkp_name = name + ".bkp-" + timestamp
         zapi.host.update(hostid=host_id, host=bkp_host, name=bkp_name, status=1)
         print(
-            'Host "{}" (id: {}) was renamed to "{}" and deactivated.'.format(name, host_id, bkp_name)
+            'Host "{}" (id: {}) was renamed to "{}" and deactivated.'.format(
+                name, host_id, bkp_name
+            )
         )
 
     host_id = zapi.host.create(
@@ -138,10 +140,9 @@ def create_zbx_host(
         hostid=host_id,
         name=lld_name,
         key_=lld_key,
-        value_type="4",
         trapper_hosts="",
-        units="",
         lifetime="0",
+        **({"value_type": "4", "units": ""} if zbx_version <= 7.0 else {}),
     )["itemids"][0]
 
     zapi.itemprototype.create(
@@ -156,7 +157,7 @@ def create_zbx_host(
             "value_type": "0",
             "trapper_hosts": "",
             "units": "",
-            "interfaceid": "0"
+            "interfaceid": "0",
         }
     )
 
@@ -178,12 +179,18 @@ def check_utils():
     use_ip = True
     successful, out, cmd = check_zabbix_utils("agent", "127.0.0.1")
     if successful:
-        print('Сompleted successfully. For connecting with zabbix-agent used address "127.0.0.1"\n')
+        print(
+            'Сompleted successfully. For connecting with zabbix-agent used address "127.0.0.1"\n'
+        )
     else:
         successful, out, cmd = check_zabbix_utils("agent", config.zbx_server_fqdn)
         if successful:
             use_ip = False
-            print('For connecting with zabbix-agent used address "{}"\n'.format(config.zbx_server_fqdn))
+            print(
+                'For connecting with zabbix-agent used address "{}"\n'.format(
+                    config.zbx_server_fqdn
+                )
+            )
         else:
             print(
                 "Error: Can't execute remote command on zabbix-agent:\n"
@@ -195,8 +202,10 @@ def check_utils():
     successful, out, cmd = check_zabbix_utils("server", config.zbx_server_fqdn)
     if successful:
         print(
-            'Сompleted successfully. '
-            'For connecting with zabbix-server used address "{}"\n'.format(config.zbx_server_fqdn)
+            "Сompleted successfully. "
+            'For connecting with zabbix-server used address "{}"\n'.format(
+                config.zbx_server_fqdn
+            )
         )
     else:
         print(
@@ -215,13 +224,15 @@ def get_zabbix_obj(obj_type, filter_query, id_key, id_only=False):
 
 
 def create_hosts():
-    host_group_id = get_zabbix_obj('hostgroup', {"name": config.group_name}, 'groupid')
+    host_group_id = get_zabbix_obj("hostgroup", {"name": config.group_name}, "groupid")
     if not host_group_id:
         print('Created host group "{}"\n'.format(config.group_name))
-        host_group_id = zapi.hostgroup.create(name=config.group_name)['groupids'][0]
-        sleep(5)    # wait until group created
+        host_group_id = zapi.hostgroup.create(name=config.group_name)["groupids"][0]
+        sleep(5)  # wait until group created
     else:
-        print('Host group "{}" already exists. Use this group\n'.format(config.group_name))
+        print(
+            'Host group "{}" already exists. Use this group\n'.format(config.group_name)
+        )
         host_group_id = host_group_id[0]["groupid"]
 
     if zbx_version < 5.4:
@@ -256,7 +267,9 @@ def create_hosts():
         item_proto_name="[{#BULLETIN.SCORE}] [{#BULLETIN.ID}] - affected hosts",
         item_proto_key="vulners.bulletins[{#BULLETIN.ID}]",
         trig_proto_expression=expression.format(
-            zabbix_host=config.bulletins_host, id="#BULLETIN.ID", score="#BULLETIN.SCORE",
+            zabbix_host=config.bulletins_host,
+            id="#BULLETIN.ID",
+            score="#BULLETIN.SCORE",
         ),
         trig_proto_desc="Impact {#BULLETIN.IMPACT}. Score {#BULLETIN.SCORE}. Affected {ITEM.VALUE}. Bulletin = {#BULLETIN.ID}",
         trig_proto_url="https://vulners.com/info/{#BULLETIN.ID}",
@@ -351,15 +364,17 @@ def create_hosts():
         )
     )
 
-    median_item_id = zapi.item.create({
-        "name": "CVSS Score - Median",
-        "key_": "vulners.scoreMedian",
-        "hostid": statistics_host_id,
-        "type": "2",
-        "value_type": "0",
-        "trapper_hosts": "",
-        "tags": [{"tag": "vulners", "value": config.application_name}],
-    })["itemids"][0]
+    median_item_id = zapi.item.create(
+        {
+            "name": "CVSS Score - Median",
+            "key_": "vulners.scoreMedian",
+            "hostid": statistics_host_id,
+            "type": "2",
+            "value_type": "0",
+            "trapper_hosts": "",
+            "tags": [{"tag": "vulners", "value": config.application_name}],
+        }
+    )["itemids"][0]
 
     hosts_cnt_score_item_ids = zapi.item.create(
         *(
@@ -376,57 +391,71 @@ def create_hosts():
         )
     )["itemids"]
 
-    zapi.graph.create({
-        "hostids": statistics_host_id,
-        "name": MEDIAN_GRAPH_NAME,
-        "width": "1000",
-        "height": "300",
-        "show_work_period": "0",
-        "graphtype": "0",
-        "show_legend": "0",
-        "show_3d": "0",
-        "gitems": [
-            {"itemid": median_item_id, "color": "00AAAA", "drawtype": "5"}
-        ],
-    })
+    zapi.graph.create(
+        {
+            "hostids": statistics_host_id,
+            "name": MEDIAN_GRAPH_NAME,
+            "width": "1000",
+            "height": "300",
+            "show_work_period": "0",
+            "graphtype": "0",
+            "show_legend": "0",
+            "show_3d": "0",
+            "gitems": [{"itemid": median_item_id, "color": "00AAAA", "drawtype": "5"}],
+        }
+    )
 
     gitems = []
 
     for idx, item_id in enumerate(hosts_cnt_score_item_ids):
-        gitems.append({
-            "itemid": item_id,
-            "color": COLORS[idx],
-            "drawtype": "5",
-            "calc_fnc": "9",
-        })
+        gitems.append(
+            {
+                "itemid": item_id,
+                "color": COLORS[idx],
+                "drawtype": "5",
+                "calc_fnc": "9",
+            }
+        )
 
-    zapi.graph.create({
-        "hostids": statistics_host_id,
-        "name": SCORE_GRAPH_NAME,
-        "width": "1000",
-        "height": "300",
-        "show_work_period": "0",
-        "graphtype": "2",
-        "show_legend": "0",
-        "show_3d": "1",
-        "gitems": gitems,
-    })
+    zapi.graph.create(
+        {
+            "hostids": statistics_host_id,
+            "name": SCORE_GRAPH_NAME,
+            "width": "1000",
+            "height": "300",
+            "show_work_period": "0",
+            "graphtype": "2",
+            "show_legend": "0",
+            "show_3d": "1",
+            "gitems": gitems,
+        }
+    )
 
     print('Created host "{}"\n'.format(config.statistics_name))
 
 
 def create_dashboard():
     host_id = get_zabbix_obj(
-        'host', {'host': config.hosts_host, 'name': config.hosts_name}, 'hostid', True
+        "host", {"host": config.hosts_host, "name": config.hosts_name}, "hostid", True
     )
     bulletins_host_id = get_zabbix_obj(
-        'host', {'host': config.bulletins_host, 'name': config.bulletins_name}, 'hostid', True
+        "host",
+        {"host": config.bulletins_host, "name": config.bulletins_name},
+        "hostid",
+        True,
     )
     packages_host_id = get_zabbix_obj(
-        'host', {'host': config.packages_host, 'name': config.packages_name}, 'hostid', True
+        "host",
+        {"host": config.packages_host, "name": config.packages_name},
+        "hostid",
+        True,
     )
-    median_graph_id = get_zabbix_obj('graph', {'name': MEDIAN_GRAPH_NAME}, 'graphid', True)
-    score_graph_id = get_zabbix_obj('graph', {'name': SCORE_GRAPH_NAME}, 'graphid', True)
+    median_graph_id = get_zabbix_obj(
+        "graph", {"name": MEDIAN_GRAPH_NAME}, "graphid", True
+    )
+    score_graph_id = get_zabbix_obj(
+        "graph", {"name": SCORE_GRAPH_NAME}, "graphid", True
+    )
 
     widgets = [
         {
@@ -520,7 +549,11 @@ def create_dashboard():
         userGroups=[],
         users=[],
         private=0,
-        **({"pages": [{"widgets": widgets}]} if zbx_version > 5.0 else {"widgets": widgets}),
+        **(
+            {"pages": [{"widgets": widgets}]}
+            if zbx_version > 5.0
+            else {"widgets": widgets}
+        ),
     )
     dash_id = dash_id["dashboardids"][0]
     print(
@@ -556,9 +589,13 @@ def create_template():
             )
         )
     if zbx_version >= 6.2:
-        template_group_id = zapi.templategroup.get(filter={"name": config.template_group_name}, output=["groupid"])
+        template_group_id = zapi.templategroup.get(
+            filter={"name": config.template_group_name}, output=["groupid"]
+        )
     else:
-        template_group_id = zapi.hostgroup.get(filter={"name": config.template_group_name}, output=["groupid"])
+        template_group_id = zapi.hostgroup.get(
+            filter={"name": config.template_group_name}, output=["groupid"]
+        )
     template_group_id = template_group_id[0]["groupid"]
 
     template_id = zapi.template.create(
@@ -573,7 +610,11 @@ def create_template():
         name=config.template_name,
     )["templateids"][0]
 
-    for name, arg, value_type in (('Name', 'os', 1), ('Version', 'version', 1), ('Packages', 'package', 4)):
+    for name, arg, value_type in (
+        ("Name", "os", 1),
+        ("Version", "version", 1),
+        ("Packages", "package", 4),
+    ):
         zapi.item.create(
             name="OS - " + name,
             key_="system.run[{$REPORT_SCRIPT_PATH} %s]" % arg,
@@ -585,9 +626,7 @@ def create_template():
             delay=delay_report,
         )
 
-    print(
-        'Created template "{}" (id: {})\n'.format(config.template_name, template_id)
-    )
+    print('Created template "{}" (id: {})\n'.format(config.template_name, template_id))
 
 
 if __name__ == "__main__":
