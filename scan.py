@@ -66,7 +66,7 @@ class Scan:
     @staticmethod
     def verify_os_data(os_name, os_version, os_packages, name, *args, **kwargs):
         try:
-            if os_name and os_version != "0.0" and len(os_packages) > 5:
+            if os_name and (os_version != "0.0") and len(os_packages) > 5 and (not ("report.py" in os_packages)):
                 return True
         except Exception as err:
             logger.warning("Excluded {}. Exception: {}".format(name, err))
@@ -105,6 +105,11 @@ class Scan:
         logger.info("Receiving extended data about hosts from Zabbix")
 
         for idx, host in enumerate(self.hosts, 1):
+            logger.info(
+               'processing host {}'.format(
+                    host["name"]
+                )
+            ) 
             items = self.zapi.item.get(
                 hostids=host["hostid"],
                 search={"key_": config.template_macros_name},
@@ -148,7 +153,7 @@ class Scan:
                         idx,
                         self.total_hosts_cnt,
                         host["name"],
-                        vulnerabilities.get("error", 0),
+                        vulnerabilities.get("error", 0)
                     )
                 )
 
