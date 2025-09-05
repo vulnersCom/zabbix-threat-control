@@ -130,7 +130,7 @@ class Scan:
     def update_with_vulners_data(self):
         logger.info("Receiving the vulnerabilities from Vulners")
         for idx, host in enumerate(self.hosts, 1):
-            vulnerabilities = self.vapi.os_audit(
+            vulnerabilities = self.vapi.audit.os_audit(
                 os=host["os_name"],
                 version=host["os_version"],
                 packages=host["os_packages"].splitlines(),

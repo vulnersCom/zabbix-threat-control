@@ -1,6 +1,3 @@
-requests==2.27.1
 jpath==1.6
-vulners==2.0.2
+vulners==3.1.0
 pyzabbix==1.3.1
-
-
