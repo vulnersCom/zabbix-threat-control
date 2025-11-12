@@ -5,6 +5,11 @@ from scan_modules.linux_detect import LinuxDetect
 
 class DebianBasedDetect(LinuxDetect):
     deb_code_map = {
+        "forky": "14",
+        "trixie": "13",
+        "bookworm": "12",
+        "bullseye": "11",
+        "buster": "10",
         "stretch": "9",
         "jessie": "8",
         "wheezy": "7",
