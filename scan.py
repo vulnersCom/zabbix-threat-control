@@ -2,7 +2,7 @@
 
 """Zabbix vulnerability assessment plugin."""
 
-__version__ = "2.2"
+__version__ = "2.3"
 
 import os
 import re
@@ -127,35 +127,136 @@ class Scan:
                 )
             )
 
+    @staticmethod
+    def _get_fix_command(os_name, package_name):
+        pkg = package_name.split()[0] if package_name else ""
+        os_lower = os_name.lower()
+
+        if os_lower in ("debian", "ubuntu"):
+            return f"sudo apt-get --assume-yes install --only-upgrade {pkg}"
+        elif os_lower in (
+            "rhel",
+            "centos",
+            "oraclelinux",
+            "fedora",
+            "rocky",
+            "almalinux",
+            "amzn",
+        ):
+            return f"sudo yum -y update {pkg}"
+        elif os_lower == "alpine":
+            return f"sudo apk upgrade {pkg}"
+        elif os_lower in ("suse", "opensuse", "sles"):
+            return f"sudo zypper update -y {pkg}"
+        else:
+            return f"sudo yum -y update {pkg}"
+
+    @staticmethod
+    def _transform_linux_audit_response(result, os_name, os_version):
+        packages_dict = {}
+        vulnerabilities = []
+        reasons = []
+        cvelist_set = set()
+        max_score = 0.0
+        fix_commands = set()
+
+        for issue in result.get("issues", []):
+            package_name = issue.get("package", "")
+            fixed_package = issue.get("fixedPackage", "")
+
+            for advisory in issue.get("applicableAdvisories", []):
+                advisory_id = advisory.get("id", "")
+                version = advisory.get("version", "")
+                operator = advisory.get("operator", "lt")
+
+                vulnerabilities.append(advisory_id)
+
+                fix_cmd = Scan._get_fix_command(os_name, package_name)
+
+                reason_entry = {
+                    "package": package_name,
+                    "published": "",
+                    "providedOSName": os_name,
+                    "matchedOSName": os_name,
+                    "bulletinOSName": os_name.capitalize(),
+                    "providedOSVersion": os_version,
+                    "bulletinOSVersion": os_version,
+                    "cvelistMetrics": [],
+                    "providedVersion": (
+                        package_name.split()[-2]
+                        if len(package_name.split()) > 1
+                        else ""
+                    ),
+                    "bulletinVersion": version,
+                    "providedPackage": package_name,
+                    "bulletinPackage": fixed_package or "UNKNOWN",
+                    "operator": operator,
+                    "bulletinID": advisory_id,
+                    "cvelist": [],
+                    "cvss": {
+                        "score": 0.0,
+                        "severity": "NONE",
+                        "version": "NONE",
+                        "vector": "NONE",
+                    },
+                    "fix": fix_cmd,
+                }
+
+                reasons.append(reason_entry)
+
+                if package_name not in packages_dict:
+                    packages_dict[package_name] = {}
+
+                if advisory_id not in packages_dict[package_name]:
+                    packages_dict[package_name][advisory_id] = [reason_entry]
+                else:
+                    packages_dict[package_name][advisory_id].append(reason_entry)
+
+                if advisory_id:
+                    cvelist_set.add(advisory_id)
+                    fix_commands.add(reason_entry["fix"])
+
+        transformed = {
+            "packages": packages_dict,
+            "vulnerabilities": list(set(vulnerabilities)),
+            "reasons": reasons,
+            "cvss": {"score": max_score, "vector": "NONE"},
+            "cvelist": list(cvelist_set),
+            "cumulativeFix": "; ".join(fix_commands) if fix_commands else "",
+            "id": None,
+        }
+
+        return transformed
+
     def update_with_vulners_data(self):
         logger.info("Receiving the vulnerabilities from Vulners")
         for idx, host in enumerate(self.hosts, 1):
-            vulnerabilities = self.vapi.audit.os_audit(
-                os=host["os_name"],
-                version=host["os_version"],
-                packages=host["os_packages"].splitlines(),
-            )
-            if vulnerabilities.get("errorCode", 0) == 0:
+            try:
+                result = self.vapi.audit.linux_audit(
+                    os_name=host["os_name"],
+                    os_version=host["os_version"],
+                    packages=host["os_packages"].splitlines(),
+                )
+
+                vulnerabilities_data = self._transform_linux_audit_response(
+                    result["result"], host["os_name"], host["os_version"]
+                )
+
                 host.update(
-                    {"vulners_data": {"data": vulnerabilities, "success": True}}
+                    {"vulners_data": {"data": vulnerabilities_data, "success": True}}
                 )
                 logger.info(
                     '[{} of {}] "{}". Successfully received data from Vulners'.format(
                         idx, self.total_hosts_cnt, host["name"]
                     )
                 )
-            else:
-                host.update(
-                    {"vulners_data": {"data": vulnerabilities, "success": False}}
-                )
-                logger.info(
-                    '[{} of {}] "{}". Can\'t receive data from Vulners. Error message: {}'.format(
-                        idx,
-                        self.total_hosts_cnt,
-                        host["name"],
-                        vulnerabilities.get("error", 0)
+            except Exception as err:
+                logger.error(
+                    '[{} of {}] "{}". Exception: {}'.format(
+                        idx, self.total_hosts_cnt, host["name"], err
                     )
                 )
+                host.update({"vulners_data": {"data": {}, "success": False}})
 
     def create_hosts_matrix(self):
         template_id = self.zapi.template.get(filter={"host": config.template_host})[0][
