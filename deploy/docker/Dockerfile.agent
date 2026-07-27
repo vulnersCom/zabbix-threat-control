@@ -1,0 +1,32 @@
+# Stand agent = a plain Ubuntu 24.04 LTS host running zabbix-agent2 with the ztc
+# remediation pieces installed exactly as on a real host (vulners.conf, the
+# worker, and a root cron draining the spool). A stable LTS base (not the rolling
+# ubuntu-7.0-latest, which is 26.04 dev) lets us install a deliberately old,
+# vulnerable openssl to demonstrate the full detect -> fix -> cleared cycle.
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# zabbix-agent2 (Ubuntu universe), cron + runuser for the worker, and a
+# deliberately old openssl/libssl3t64 (CVE-2024-... , CVSS 9.8) fixable by upgrade.
+# APT lists are kept so the worker's `apt-get --only-upgrade` can reach the fix.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends wget ca-certificates cron util-linux \
+ && wget -qO /tmp/zbx.deb https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest+ubuntu24.04_all.deb \
+ && dpkg -i /tmp/zbx.deb && rm -f /tmp/zbx.deb \
+ && apt-get update \
+ && apt-get install -y zabbix-agent2 \
+ && apt-get install -y --allow-downgrades openssl=3.0.13-0ubuntu3 libssl3t64=3.0.13-0ubuntu3 \
+ && mkdir -p /run/zabbix /var/lib/zabbix && chown zabbix:zabbix /run/zabbix /var/lib/zabbix
+
+COPY deploy/docker/zabbix_agent2.stand.conf   /etc/zabbix/zabbix_agent2.conf
+COPY deploy/agent/linux/vulners.conf          /etc/zabbix/zabbix_agent2.d/vulners.conf
+COPY deploy/agent/linux/vulners-fix-worker.sh /usr/local/bin/vulners-fix-worker.sh
+COPY deploy/agent/linux/vulners-fix.cron      /etc/cron.d/vulners-fix
+RUN chmod 755 /usr/local/bin/vulners-fix-worker.sh && chmod 644 /etc/cron.d/vulners-fix
+
+COPY deploy/docker/agent-entrypoint.sh /agent-entrypoint.sh
+RUN chmod 755 /agent-entrypoint.sh
+
+ENTRYPOINT ["/agent-entrypoint.sh"]
+CMD ["zabbix_agent2", "--foreground", "-c", "/etc/zabbix/zabbix_agent2.conf"]

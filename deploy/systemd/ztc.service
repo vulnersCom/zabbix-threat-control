@@ -1,0 +1,25 @@
+# Reference unit (deploy/install.sh generates an equivalent one). Manual setup:
+#   install -m0755 ztc /usr/local/bin/ztc
+#   useradd --system --no-create-home --shell /usr/sbin/nologin ztc
+#   install -d /etc/ztc && install -m600 -o ztc ztc.env /etc/ztc/ztc.env  # your secrets
+#   cp ztc.service /etc/systemd/system/ && systemctl enable --now ztc
+[Unit]
+Description=Vulners Threat Control (ztc) scanner
+Documentation=https://github.com/vulnersCom/zabbix-threat-control
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ztc
+EnvironmentFile=/etc/ztc/ztc.env
+ExecStart=/usr/local/bin/ztc scan --daemon
+Restart=on-failure
+RestartSec=30
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

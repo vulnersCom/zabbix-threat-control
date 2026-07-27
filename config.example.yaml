@@ -1,0 +1,49 @@
+# Example ztc configuration. Secrets are better supplied via environment
+# variables (VULNERS_API_KEY, ZABBIX_TOKEN, ...), which override this file.
+
+vulners:
+  api_key: ""            # or env VULNERS_API_KEY
+  base_url: ""           # optional proxy / self-hosted endpoint
+  timeout: 30s
+  retries: 3
+
+zabbix:
+  url: http://localhost:8080
+  # Prefer a long-lived API token (Zabbix 7.2+); otherwise use user + password.
+  token: ""              # or env ZABBIX_TOKEN
+  user: Admin            # or env ZABBIX_USER
+  password: zabbix       # or env ZABBIX_PASSWORD
+  verify_ssl: true
+  version: ""            # "" = autodetect
+  server_fqdn: localhost # zabbix-sender target (server/proxy)
+  server_port: 10051
+
+entities:
+  group: Vulners
+  # Separate Linux/Windows collection templates so a host only gets its own keys.
+  template: tmpl.vulners.os-report.linux
+  template_name: Template Vulners OS-Report Linux
+  template_win: tmpl.vulners.os-report.windows
+  template_win_name: Template Vulners OS-Report Windows
+  template_group: Templates
+  hosts_host: vulners.hosts
+  hosts_name: Vulners - Hosts
+  bulletins_host: vulners.bulletins
+  bulletins_name: Vulners - Bulletins
+  packages_host: vulners.packages
+  packages_name: Vulners - Packages
+  statistics_host: vulners.statistics
+  statistics_name: Vulners - Statistics
+  dashboard: Vulners
+  application: Vulnerabilities
+
+fix:
+  key: vulners.fix              # whitelisted agent UserParameter (see deploy/agent)
+  trusted_users:                # Zabbix usernames whose acknowledgement authorises --auto-fix
+    - Admin
+  agent_port: 10050             # passive agent port for remediation
+  agent_timeout: 60s
+
+min_cvss: 1
+schedule: 24h        # daemon scan interval (env ZTC_SCHEDULE overrides)
+log_level: info

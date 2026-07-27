@@ -1,0 +1,12 @@
+version: "2"
+
+# A conservative, low-noise starter set. Broaden (staticcheck, errcheck, revive…)
+# once the codebase is triaged; the CI lint job is non-blocking until then.
+linters:
+  default: none
+  enable:
+    - govet
+    - ineffassign
+    - misspell
+    - unconvert
+    - unused

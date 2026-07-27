@@ -1,0 +1,22 @@
+# Production deployment — run ONLY ztc as a container against your existing
+# Zabbix. (The full self-contained test stand is docker-compose.yml.)
+#
+#   cp ztc.env.example ztc.env          # fill in Vulners key + Zabbix connection
+#   docker compose -f compose.prod.yml run --rm ztc provision --all   # one-time setup
+#   docker compose -f compose.prod.yml up -d                          # start the daemon
+#
+# Logs:  docker compose -f compose.prod.yml logs -f
+name: ztc
+
+services:
+  ztc:
+    image: ghcr.io/vulnerscom/zabbix-threat-control:latest
+    # To build from source instead of pulling the released image, comment the
+    # line above and uncomment:
+    # build: { context: ../.., dockerfile: Dockerfile }
+    restart: unless-stopped
+    env_file: [ztc.env]
+    command: ["scan", "--daemon"]
+    # Uncomment if your Zabbix runs on the Docker host (reach it as
+    # host.docker.internal in ztc.env, e.g. ZABBIX_URL=http://host.docker.internal:8080):
+    # extra_hosts: ["host.docker.internal:host-gateway"]

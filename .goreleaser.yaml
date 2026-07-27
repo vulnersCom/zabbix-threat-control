@@ -1,0 +1,53 @@
+version: 2
+
+project_name: ztc
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: ztc
+    main: ./cmd/ztc
+    binary: ztc
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - id: ztc
+    formats: [tar.gz]
+    name_template: "ztc_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+      - config.example.yaml
+      - src: deploy/**/*
+        info:
+          mode: 0644
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  # owner/name are auto-detected from the git remote, so this works unchanged
+  # in a fork or a test repository.
+  draft: false
+  prerelease: auto

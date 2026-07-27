@@ -1,0 +1,13 @@
+.git
+.github
+legacy
+docs
+media
+deploy
+bin
+*.md
+.golangci.yml
+.goreleaser.yaml
+config.example.yaml
+Makefile
+.DS_Store
