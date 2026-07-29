@@ -149,8 +149,8 @@ services:
   # user, and a root cron drains the vulners.fix spool (deploy/agent/linux files
   # baked in). Its Zabbix host name is "Zabbix server".
   zabbix-agent2:
-    # Zabbix's Ubuntu repo ships amd64 only; on an arm64 host this runs emulated.
-    platform: linux/amd64
+    # Builds natively on amd64 and arm64 — Dockerfile.agent picks the Zabbix repo
+    # by TARGETARCH (arm64 lives in a separate ubuntu-arm64 repo).
     build:
       context: ../..
       dockerfile: deploy/docker/Dockerfile.agent

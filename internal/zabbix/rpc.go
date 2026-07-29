@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -122,9 +123,22 @@ func (c *rpcClient) Call(ctx context.Context, method string, params interface{})
 	}
 	defer resp.Body.Close()
 
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("zabbix call %s: reading response from %s: %w", method, c.endpoint, err)
+	}
+	// The JSON-RPC endpoint answers 200 with JSON even for API errors; anything
+	// else (or a non-JSON 200 — a login page, reverse-proxy 404, WAF block) means
+	// ZABBIX_URL is not pointing at api_jsonrpc.php. Say so instead of surfacing a
+	// bare "invalid character '<'".
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("zabbix call %s: %s returned HTTP %d — is ZABBIX_URL the JSON-RPC API? %s",
+			method, c.endpoint, resp.StatusCode, bodySnippet(respBody))
+	}
 	var out rpcResponse
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, fmt.Errorf("zabbix decode %s: %w", method, err)
+	if err := json.Unmarshal(respBody, &out); err != nil {
+		return nil, fmt.Errorf("zabbix call %s: %s did not return JSON — is ZABBIX_URL the JSON-RPC API? %s",
+			method, c.endpoint, bodySnippet(respBody))
 	}
 	if out.Error != nil {
 		return nil, out.Error
@@ -134,6 +148,22 @@ func (c *rpcClient) Call(ctx context.Context, method string, params interface{})
 
 func isAnonymousMethod(method string) bool {
 	return method == "apiinfo.version" || method == "user.login"
+}
+
+// bodySnippet returns a short single-line excerpt of a response body for error
+// messages (e.g. the first line of an HTML error page).
+func bodySnippet(b []byte) string {
+	s := strings.TrimSpace(string(b))
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		s = s[:i]
+	}
+	if len(s) > 200 {
+		s = s[:200] + "…"
+	}
+	if s == "" {
+		return "(empty response body)"
+	}
+	return "body: " + s
 }
 
 func (c *rpcClient) Version(ctx context.Context) (string, error) {

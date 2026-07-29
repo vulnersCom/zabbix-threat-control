@@ -63,6 +63,7 @@ installer collects these into `/etc/ztc/ztc.env`; every knob is documented in
 | `VULNERS_CLIENT_CERT` / `VULNERS_CLIENT_KEY` | | mTLS client cert for a private Vulners |
 | `ZTC_SCHEDULE` | | daemon scan interval (e.g. `24h`) |
 | `ZTC_LOG_LEVEL` | | `debug` / `info` / `warn` / `error` |
+| `ZTC_TRUSTED_USERS` | | comma-separated Zabbix usernames who may authorise `--auto-fix` (env form of `fix.trusted_users`) |
 
 The YAML file also tunes non-secret behaviour: `min_cvss` (drop findings below a
 score), `fix.trusted_users` (who may authorise auto-fix), and the `entities.*`

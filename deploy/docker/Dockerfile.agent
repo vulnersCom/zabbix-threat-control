@@ -5,14 +5,18 @@
 # vulnerable openssl to demonstrate the full detect -> fix -> cleared cycle.
 FROM ubuntu:24.04
 
+ARG TARGETARCH
 ENV DEBIAN_FRONTEND=noninteractive
 
 # zabbix-agent2 (Ubuntu universe), cron + runuser for the worker, and a
 # deliberately old openssl/libssl3t64 (CVE-2024-... , CVSS 9.8) fixable by upgrade.
 # APT lists are kept so the worker's `apt-get --only-upgrade` can reach the fix.
+# Zabbix ships arm64 packages in a separate ubuntu-arm64 repo, so pick the repo
+# by target arch — this builds natively on both amd64 and arm64 (no emulation).
 RUN apt-get update \
  && apt-get install -y --no-install-recommends wget ca-certificates cron util-linux \
- && wget -qO /tmp/zbx.deb https://repo.zabbix.com/zabbix/7.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_latest+ubuntu24.04_all.deb \
+ && case "$TARGETARCH" in arm64) ZBX_REPO=ubuntu-arm64 ;; *) ZBX_REPO=ubuntu ;; esac \
+ && wget -qO /tmp/zbx.deb "https://repo.zabbix.com/zabbix/7.0/${ZBX_REPO}/pool/main/z/zabbix-release/zabbix-release_latest+ubuntu24.04_all.deb" \
  && dpkg -i /tmp/zbx.deb && rm -f /tmp/zbx.deb \
  && apt-get update \
  && apt-get install -y zabbix-agent2 \

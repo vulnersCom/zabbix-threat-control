@@ -42,8 +42,12 @@ the UI (<http://localhost:8080>):
    container).
 
 Collection items poll on their template interval (default `1d`). For a quick demo,
-either lower the interval, or use **Monitoring → Latest data**, select the `vulners.*`
-items, and click **Execute now** to fetch them immediately.
+either lower the interval, or use **Monitoring → Latest data**, filter by
+**Tags: `vulners`** (the items are named `OS - Name` / `OS - Version` / … — the
+word "vulners" is only in their key, so a Name filter won't find them), select
+them and click **Execute now**. Note: right after linking the template, Execute
+now is a no-op until the server reloads its configuration cache (~60s by
+default) and learns about the new items.
 
 ## Run a scan
 

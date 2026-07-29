@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -227,6 +228,17 @@ func applyEnv(cfg *Config) {
 	}
 	if v := os.Getenv("ZTC_LOG_LEVEL"); v != "" {
 		cfg.LogLevel = v
+	}
+	// The one-command installer writes only /etc/ztc/ztc.env, never a YAML file,
+	// so --auto-fix's trusted_users gate needs an env form too (F9).
+	if v := os.Getenv("ZTC_TRUSTED_USERS"); v != "" {
+		var users []string
+		for _, u := range strings.Split(v, ",") {
+			if u = strings.TrimSpace(u); u != "" {
+				users = append(users, u)
+			}
+		}
+		cfg.Fix.TrustedUsers = users
 	}
 }
 
