@@ -285,11 +285,12 @@ func (p *Provisioner) createVirtualHost(ctx context.Context, groupID string, s v
 	}
 
 	res, err := p.c.Call(ctx, "discoveryrule.create", map[string]interface{}{
-		"type":     2, // trapper
-		"hostid":   hostID,
-		"name":     s.name,
-		"key_":     s.lldKey,
-		"lifetime": "0",
+		"type":          2, // trapper
+		"hostid":        hostID,
+		"name":          s.name,
+		"key_":          s.lldKey,
+		"lifetime":      "0",
+		"trapper_hosts": p.trapperHosts(), // explicit: Zabbix 8.0 else defaults to 127.0.0.1,::1 and drops sender data
 	})
 	if err != nil {
 		return fmt.Errorf("discovery rule: %w", err)
@@ -300,12 +301,13 @@ func (p *Provisioner) createVirtualHost(ctx context.Context, groupID string, s v
 	}
 
 	if _, err := p.c.Call(ctx, "itemprototype.create", map[string]interface{}{
-		"hostid":     hostID,
-		"ruleid":     lldID,
-		"name":       s.itemProtoName,
-		"key_":       s.itemProtoKey,
-		"type":       2, // trapper
-		"value_type": 0, // float
+		"hostid":        hostID,
+		"ruleid":        lldID,
+		"name":          s.itemProtoName,
+		"key_":          s.itemProtoKey,
+		"type":          2, // trapper
+		"value_type":    0, // float
+		"trapper_hosts": p.trapperHosts(),
 	}); err != nil {
 		return fmt.Errorf("item prototype: %w", err)
 	}
@@ -348,12 +350,13 @@ func (p *Provisioner) createStatisticsHost(ctx context.Context, groupID string) 
 
 	trapper := func(name, key string, valueType int) error {
 		_, err := p.c.Call(ctx, "item.create", map[string]interface{}{
-			"name":       name,
-			"key_":       key,
-			"hostid":     hostID,
-			"type":       2, // trapper
-			"value_type": valueType,
-			"tags":       []map[string]string{{"tag": "vulners", "value": e.Application}},
+			"name":          name,
+			"key_":          key,
+			"hostid":        hostID,
+			"type":          2, // trapper
+			"value_type":    valueType,
+			"trapper_hosts": p.trapperHosts(),
+			"tags":          []map[string]string{{"tag": "vulners", "value": e.Application}},
 		})
 		return err
 	}
@@ -545,6 +548,17 @@ func (p *Provisioner) createDashboard(ctx context.Context) error {
 }
 
 // --- helpers ---
+
+// trapperHosts is the "Allowed hosts" value set on every trapper item and LLD
+// rule. Empty config means accept from any host — but on Zabbix 8.0 an empty
+// string means the opposite (reject everyone), so we materialise "any" as the
+// all-addresses CIDRs, which behave as accept-any on 6.0/7.0/7.4/8.0 alike.
+func (p *Provisioner) trapperHosts() string {
+	if p.cfg.Zabbix.TrapperHosts != "" {
+		return p.cfg.Zabbix.TrapperHosts
+	}
+	return "0.0.0.0/0,::/0"
+}
 
 func (p *Provisioner) hostID(ctx context.Context, host string) (string, error) {
 	return p.getID(ctx, "host.get", map[string]interface{}{

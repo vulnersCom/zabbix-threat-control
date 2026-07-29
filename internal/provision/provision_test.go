@@ -92,6 +92,40 @@ func TestProvisionVirtualHosts(t *testing.T) {
 	}
 }
 
+// Regression for F2: on Zabbix 8.0 a trapper item/LLD rule created without an
+// explicit trapper_hosts inherits {$TRAPPER.ALLOWED_HOSTS} (127.0.0.1,::1) and
+// silently rejects sender data from a remote ztc. Every trapper create must
+// carry a non-empty trapper_hosts.
+func TestProvisionTrapperHostsSet(t *testing.T) {
+	mock := &zabbix.Mock{CallFunc: createResponder()}
+	if err := testProvisioner(mock).Run(context.Background(), Flags{VHosts: true}); err != nil {
+		t.Fatal(err)
+	}
+	trapperMethods := map[string]bool{
+		"discoveryrule.create": true, // trapper LLD rule
+		"itemprototype.create": true, // trapper item prototype
+		"item.create":          true, // statistics trapper items
+	}
+	checked := 0
+	for _, c := range mock.Calls {
+		if !trapperMethods[c.Method] {
+			continue
+		}
+		params, ok := c.Params.(map[string]interface{})
+		if !ok {
+			t.Fatalf("%s params not a map: %T", c.Method, c.Params)
+		}
+		th, _ := params["trapper_hosts"].(string)
+		if th == "" {
+			t.Errorf("%s created without trapper_hosts (empty rejects everyone on Zabbix 8.0)", c.Method)
+		}
+		checked++
+	}
+	if checked == 0 {
+		t.Fatal("no trapper create calls seen")
+	}
+}
+
 func TestProvisionDashboard(t *testing.T) {
 	mock := &zabbix.Mock{CallFunc: createResponder()}
 	if err := testProvisioner(mock).Run(context.Background(), Flags{Dashboard: true}); err != nil {

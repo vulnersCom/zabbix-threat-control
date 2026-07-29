@@ -50,8 +50,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
+      - name: ztc image
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: false
           build-args: VERSION=ci
+      # Also build the agent image: its Dockerfile COPYs files from deploy/, which
+      # .dockerignore excludes — this catches a broken build context (see F2/F1).
+      - name: agent image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile.agent
+          push: false

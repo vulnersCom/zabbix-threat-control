@@ -62,6 +62,14 @@ type Zabbix struct {
 
 	ServerFQDN string `yaml:"server_fqdn"` // zabbix-sender target
 	ServerPort int    `yaml:"server_port"`
+
+	// TrapperHosts is set as the "Allowed hosts" on every trapper item and LLD
+	// rule provision creates. Empty = accept from any host (the 6.0/7.0/7.4
+	// default). Zabbix 8.0 defaults trapper items to {$TRAPPER.ALLOWED_HOSTS}
+	// (127.0.0.1,::1), which silently rejects sender data from a remote ztc — so
+	// provision must set this field explicitly. Set it to ztc's source address
+	// to restrict who may push.
+	TrapperHosts string `yaml:"trapper_hosts"`
 }
 
 // Entities maps the virtual hosts / template / dashboard names created by the
@@ -203,6 +211,9 @@ func applyEnv(cfg *Config) {
 	}
 	if v := os.Getenv("ZABBIX_SERVER_FQDN"); v != "" {
 		cfg.Zabbix.ServerFQDN = v
+	}
+	if v := os.Getenv("ZABBIX_TRAPPER_HOSTS"); v != "" {
+		cfg.Zabbix.TrapperHosts = v
 	}
 	if v := os.Getenv("ZABBIX_SERVER_PORT"); v != "" {
 		if p, err := strconv.Atoi(v); err == nil {

@@ -1,9 +1,14 @@
 .git
 .github
-legacy
 docs
 media
 deploy
+# deploy/ is excluded from the ztc image context, but Dockerfile.agent (built with
+# context ../..) needs these specific files — re-include them (not all of
+# deploy/docker, to keep the .env* out of the build context).
+!deploy/agent
+!deploy/docker/zabbix_agent2.stand.conf
+!deploy/docker/agent-entrypoint.sh
 bin
 *.md
 .golangci.yml

@@ -17,6 +17,11 @@ zabbix:
   version: ""            # "" = autodetect
   server_fqdn: localhost # zabbix-sender target (server/proxy)
   server_port: 10051
+  # "Allowed hosts" set on every trapper item/LLD rule at provision time.
+  # "" = accept from any host. REQUIRED to be set (even to "") for Zabbix 8.0,
+  # which otherwise defaults to 127.0.0.1,::1 and silently drops sender data
+  # from a remote ztc. Set to ztc's source address to restrict who may push.
+  trapper_hosts: "" # or env ZABBIX_TRAPPER_HOSTS
 
 entities:
   group: Vulners
