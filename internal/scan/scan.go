@@ -24,6 +24,7 @@ type Pusher interface {
 // Options tunes one scan cycle.
 type Options struct {
 	Entities  aggregate.Entities
+	MinCVSS   float64       // drop findings scoring below this before building entities
 	NoPush    bool          // build data but don't send it
 	PushDelay time.Duration // wait between LLD and data batches (Zabbix needs LLD applied first)
 }
@@ -79,7 +80,7 @@ func (r *Runner) Cycle(ctx context.Context) ([]model.HostResult, error) {
 		return results, nil
 	}
 
-	payload := aggregate.Build(results, r.opts.Entities)
+	payload := aggregate.Build(results, r.opts.Entities, r.opts.MinCVSS)
 
 	if r.opts.NoPush {
 		r.log.Info("nopush set: skipping delivery", "lld_items", len(payload.LLD), "data_items", len(payload.Data))

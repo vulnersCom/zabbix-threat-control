@@ -48,7 +48,7 @@ func findData(items []Item, host, key string) (Item, bool) {
 }
 
 func TestBuildHostsData(t *testing.T) {
-	res := Build(sample(), ent)
+	res := Build(sample(), ent, 0)
 
 	it, ok := findData(res.Data, "vulners.hosts", "vulners.hosts[1]")
 	if !ok || it.Value != "9.8" {
@@ -60,7 +60,7 @@ func TestBuildHostsData(t *testing.T) {
 }
 
 func TestBuildPackagesPerHost(t *testing.T) {
-	res := Build(sample(), ent)
+	res := Build(sample(), ent, 0)
 
 	// One item per (package, host) pair: openssl on both hosts, bash only host-one.
 	for _, key := range []string{"vulners.packages[openssl,1]", "vulners.packages[openssl,2]", "vulners.packages[bash,1]"} {
@@ -95,7 +95,7 @@ func TestBuildPackagesPerHost(t *testing.T) {
 }
 
 func TestBuildBulletins(t *testing.T) {
-	res := Build(sample(), ent)
+	res := Build(sample(), ent, 0)
 	// USN-3 affects both hosts -> one item per (bulletin, host) pair.
 	for _, key := range []string{"vulners.bulletins[USN-3,1]", "vulners.bulletins[USN-3,2]"} {
 		if it, ok := findData(res.Data, "vulners.bulletins", key); !ok || it.Value != "1" {
@@ -108,8 +108,47 @@ func TestBuildBulletins(t *testing.T) {
 	}
 }
 
+func TestBuildMinCVSSFilter(t *testing.T) {
+	res := Build(sample(), ent, 7) // keep only score >= 7
+
+	// USN-3 / openssl score 5.0 -> dropped everywhere; USN-2 / bash 9.8 -> kept.
+	for _, dropped := range []struct{ host, key string }{
+		{"vulners.bulletins", "vulners.bulletins[USN-3,1]"},
+		{"vulners.bulletins", "vulners.bulletins[USN-3,2]"},
+		{"vulners.packages", "vulners.packages[openssl,1]"},
+	} {
+		if _, ok := findData(res.Data, dropped.host, dropped.key); ok {
+			t.Errorf("%s (score 5.0) should be filtered out by min_cvss 7", dropped.key)
+		}
+	}
+	if _, ok := findData(res.Data, "vulners.bulletins", "vulners.bulletins[USN-2,1]"); !ok {
+		t.Error("USN-2 (score 9.8) should survive min_cvss 7")
+	}
+	if _, ok := findData(res.Data, "vulners.packages", "vulners.packages[bash,1]"); !ok {
+		t.Error("bash (score 9.8) should survive min_cvss 7")
+	}
+}
+
+func TestBuildSeverityMacro(t *testing.T) {
+	res := Build(sample(), ent, 0)
+	lld, _ := findData(res.LLD, "vulners.bulletins", "vulners.bulletins_lld")
+	var payload struct {
+		Data []map[string]interface{} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(lld.Value), &payload); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{"USN-2": "Disaster", "USN-3": "Average"} // 9.8, 5.0
+	for _, d := range payload.Data {
+		id := d["{#BULLETIN.ID}"].(string)
+		if sev, _ := d["{#BULLETIN.SEVERITY}"].(string); sev != want[id] {
+			t.Errorf("%s severity = %q, want %q", id, sev, want[id])
+		}
+	}
+}
+
 func TestBuildStatistics(t *testing.T) {
-	res := Build(sample(), ent)
+	res := Build(sample(), ent, 0)
 
 	if it, _ := findData(res.Data, "vulners.statistics", "vulners.TotalHosts"); it.Value != "2" {
 		t.Errorf("total hosts = %q, want 2", it.Value)
@@ -134,7 +173,7 @@ func TestBuildStatistics(t *testing.T) {
 }
 
 func TestBuildEmpty(t *testing.T) {
-	res := Build(nil, ent)
+	res := Build(nil, ent, 0)
 	if it, _ := findData(res.Data, "vulners.statistics", "vulners.TotalHosts"); it.Value != "0" {
 		t.Errorf("total = %q, want 0", it.Value)
 	}

@@ -34,12 +34,16 @@ type Result struct {
 	Data []Item
 }
 
-// Build produces the complete sender payload from host results.
-func Build(results []model.HostResult, ent Entities) Result {
+// Build produces the complete sender payload from host results. Findings scoring
+// below minCVSS are dropped before any Zabbix entity is created — this is the
+// only lever that actually bounds object count (one Windows host can otherwise
+// emit thousands of bulletins, each becoming an item + trigger). minCVSS<=0
+// keeps everything.
+func Build(results []model.HostResult, ent Entities, minCVSS float64) Result {
 	var out Result
 	buildHosts(&out, results, ent)
-	buildPackages(&out, results, ent)
-	buildBulletins(&out, results, ent)
+	buildPackages(&out, results, ent, minCVSS)
+	buildBulletins(&out, results, ent, minCVSS)
 	buildStatistics(&out, results, ent)
 	return out
 }
@@ -53,11 +57,12 @@ func buildHosts(out *Result, results []model.HostResult, ent Entities) {
 			Value: formatScore(r.Score),
 		})
 		discovery = append(discovery, map[string]interface{}{
-			"{#H.VNAME}": r.Host.Name,
-			"{#H.HOST}":  r.Host.Host,
-			"{#H.ID}":    r.Host.HostID,
-			"{#H.FIX}":   r.CumulativeFix,
-			"{#H.SCORE}": r.Score,
+			"{#H.VNAME}":    r.Host.Name,
+			"{#H.HOST}":     r.Host.Host,
+			"{#H.ID}":       r.Host.HostID,
+			"{#H.FIX}":      r.CumulativeFix,
+			"{#H.SCORE}":    r.Score,
+			"{#H.SEVERITY}": model.SeverityFor(r.Score).Label,
 		})
 	}
 	out.LLD = append(out.LLD, Item{
@@ -70,11 +75,14 @@ func buildHosts(out *Result, results []model.HostResult, ent Entities) {
 // buildPackages emits one discovery entity per (package, host) pair so each
 // vulnerable package on each host becomes its own problem, tagged with exactly
 // that host (vulners.host = {#PKG.HOST}).
-func buildPackages(out *Result, results []model.HostResult, ent Entities) {
+func buildPackages(out *Result, results []model.HostResult, ent Entities, minCVSS float64) {
 	seen := map[string]bool{}
 	var discovery []map[string]interface{}
 	for _, r := range results {
 		for _, p := range r.Packages {
+			if p.Score < minCVSS {
+				continue
+			}
 			key := p.Name + "\x00" + r.Host.HostID
 			if seen[key] {
 				continue
@@ -86,12 +94,13 @@ func buildPackages(out *Result, results []model.HostResult, ent Entities) {
 				Value: "1",
 			})
 			discovery = append(discovery, map[string]interface{}{
-				"{#PKG.ID}":     p.Name,
-				"{#PKG.URL}":    p.BulletinID,
-				"{#PKG.SCORE}":  p.Score,
-				"{#PKG.FIX}":    p.Fix,
-				"{#PKG.HOST}":   r.Host.Name,
-				"{#PKG.HOSTID}": r.Host.HostID,
+				"{#PKG.ID}":       p.Name,
+				"{#PKG.URL}":      p.BulletinID,
+				"{#PKG.SCORE}":    p.Score,
+				"{#PKG.SEVERITY}": model.SeverityFor(p.Score).Label,
+				"{#PKG.FIX}":      p.Fix,
+				"{#PKG.HOST}":     r.Host.Name,
+				"{#PKG.HOSTID}":   r.Host.HostID,
 			})
 		}
 	}
@@ -105,11 +114,14 @@ func buildPackages(out *Result, results []model.HostResult, ent Entities) {
 // buildBulletins emits one discovery entity per (bulletin, host) pair so each
 // advisory on each host becomes its own problem, tagged with exactly that host
 // (vulners.host = {#BULLETIN.HOST}).
-func buildBulletins(out *Result, results []model.HostResult, ent Entities) {
+func buildBulletins(out *Result, results []model.HostResult, ent Entities, minCVSS float64) {
 	seen := map[string]bool{}
 	var discovery []map[string]interface{}
 	for _, r := range results {
 		for _, b := range r.Bulletins {
+			if b.Score < minCVSS {
+				continue
+			}
 			key := b.Name + "\x00" + r.Host.HostID
 			if seen[key] {
 				continue
@@ -121,10 +133,11 @@ func buildBulletins(out *Result, results []model.HostResult, ent Entities) {
 				Value: "1",
 			})
 			discovery = append(discovery, map[string]interface{}{
-				"{#BULLETIN.ID}":     b.Name,
-				"{#BULLETIN.SCORE}":  b.Score,
-				"{#BULLETIN.HOST}":   r.Host.Name,
-				"{#BULLETIN.HOSTID}": r.Host.HostID,
+				"{#BULLETIN.ID}":       b.Name,
+				"{#BULLETIN.SCORE}":    b.Score,
+				"{#BULLETIN.SEVERITY}": model.SeverityFor(b.Score).Label,
+				"{#BULLETIN.HOST}":     r.Host.Name,
+				"{#BULLETIN.HOSTID}":   r.Host.HostID,
 			})
 		}
 	}

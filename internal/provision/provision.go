@@ -13,8 +13,36 @@ import (
 	"strings"
 
 	"github.com/vulnersCom/zabbix-threat-control/internal/config"
+	"github.com/vulnersCom/zabbix-threat-control/internal/model"
 	"github.com/vulnersCom/zabbix-threat-control/internal/zabbix"
 )
+
+// severityOverrides builds LLD override rules that set each discovered trigger's
+// severity from the finding's band label ({#...SEVERITY}). A single trigger
+// prototype plus these overrides replaces the old one-prototype-per-band scheme,
+// which materialised 4x as many trigger objects (F3). operationobject 1 =
+// trigger prototype; operator 8 = "matches"; value ".*" targets the sole
+// prototype on the rule.
+func severityOverrides(severityMacro string) []map[string]interface{} {
+	ov := make([]map[string]interface{}, 0, len(model.SeverityBands))
+	for i, b := range model.SeverityBands {
+		ov = append(ov, map[string]interface{}{
+			"name": b.Label,
+			"step": i + 1,
+			"stop": "0",
+			"filter": map[string]interface{}{
+				"evaltype": 0,
+				"conditions": []map[string]interface{}{
+					{"macro": severityMacro, "operator": 8, "value": "^" + b.Label + "$"},
+				},
+			},
+			"operations": []map[string]interface{}{
+				{"operationobject": 1, "operator": 8, "value": ".*", "opseverity": map[string]interface{}{"severity": b.Priority}},
+			},
+		})
+	}
+	return ov
+}
 
 // Flags selects which entities to create (mirrors prepare.py -uvtd).
 type Flags struct {
@@ -200,27 +228,13 @@ type vhostSpec struct {
 	lldKey          string
 	itemProtoName   string
 	itemProtoKey    string
-	triggerItemExpr string // the "last(...)>0" part; severity bands append the score condition
+	triggerItemExpr string // the "last(...)>0" part; the score gate is appended
 	scoreMacro      string // LLD macro holding the CVSS score, e.g. "{#BULLETIN.SCORE}"
+	severityMacro   string // LLD macro holding the band label, e.g. "{#BULLETIN.SEVERITY}"
 	triggerDesc     string
 	triggerURL      string
 	triggerComment  string
 	triggerTags     []map[string]string // carry host/package identity into events (for fix)
-}
-
-// severityBands map CVSS score ranges [lo, hi) to Zabbix trigger priorities so
-// "Problems by Severity" reflects the score. hi==0 means no upper bound. A
-// prototype is created per band; only the one whose constant score condition
-// holds ever fires for a given discovered entity.
-var severityBands = []struct {
-	label    string
-	priority int
-	lo, hi   float64
-}{
-	{"Disaster", 5, 9, 0},
-	{"High", 4, 7, 9},
-	{"Average", 3, 4, 7},
-	{"Warning", 2, 0, 4},
 }
 
 func (p *Provisioner) createVirtualHosts(ctx context.Context) error {
@@ -237,6 +251,7 @@ func (p *Provisioner) createVirtualHosts(ctx context.Context) error {
 			itemProtoKey:    "vulners.hosts[{#H.ID}]",
 			triggerItemExpr: fmt.Sprintf("last(/%s/vulners.hosts[{#H.ID}])>0", e.HostsHost),
 			scoreMacro:      "{#H.SCORE}",
+			severityMacro:   "{#H.SEVERITY}",
 			triggerDesc:     "Score {#H.SCORE}. Host = {#H.VNAME}",
 			triggerComment:  "Cumulative fix:\r\n\r\n{#H.FIX}",
 			triggerTags: []map[string]string{
@@ -250,6 +265,7 @@ func (p *Provisioner) createVirtualHosts(ctx context.Context) error {
 			itemProtoKey:    "vulners.bulletins[{#BULLETIN.ID},{#BULLETIN.HOSTID}]",
 			triggerItemExpr: fmt.Sprintf("last(/%s/vulners.bulletins[{#BULLETIN.ID},{#BULLETIN.HOSTID}])>0", e.BulletinsHost),
 			scoreMacro:      "{#BULLETIN.SCORE}",
+			severityMacro:   "{#BULLETIN.SEVERITY}",
 			triggerDesc:     "Score {#BULLETIN.SCORE}. Bulletin = {#BULLETIN.ID} on {#BULLETIN.HOST}",
 			triggerURL:      "https://vulners.com/info/{#BULLETIN.ID}",
 			triggerComment:  "Affected host: {#BULLETIN.HOST}",
@@ -261,6 +277,7 @@ func (p *Provisioner) createVirtualHosts(ctx context.Context) error {
 			itemProtoKey:    "vulners.packages[{#PKG.ID},{#PKG.HOSTID}]",
 			triggerItemExpr: fmt.Sprintf("last(/%s/vulners.packages[{#PKG.ID},{#PKG.HOSTID}])>0", e.PackagesHost),
 			scoreMacro:      "{#PKG.SCORE}",
+			severityMacro:   "{#PKG.SEVERITY}",
 			triggerDesc:     "Score {#PKG.SCORE}. Package = {#PKG.ID} on {#PKG.HOST}",
 			triggerURL:      "https://vulners.com/info/{#PKG.URL}",
 			triggerComment:  "Affected host: {#PKG.HOST}\r\n----\r\n{#PKG.FIX}",
@@ -297,6 +314,7 @@ func (p *Provisioner) createVirtualHost(ctx context.Context, groupID string, s v
 		"key_":          s.lldKey,
 		"lifetime":      "0",
 		"trapper_hosts": p.trapperHosts(), // explicit: Zabbix 8.0 else defaults to 127.0.0.1,::1 and drops sender data
+		"overrides":     severityOverrides(s.severityMacro),
 	})
 	if err != nil {
 		return fmt.Errorf("discovery rule: %w", err)
@@ -318,27 +336,24 @@ func (p *Provisioner) createVirtualHost(ctx context.Context, groupID string, s v
 		return fmt.Errorf("item prototype: %w", err)
 	}
 
-	for _, b := range severityBands {
-		cond := fmt.Sprintf("%s>=%g", s.scoreMacro, b.lo)
-		if b.hi > 0 {
-			cond += fmt.Sprintf(" and %s<%g", s.scoreMacro, b.hi)
-		}
-		trigger := map[string]interface{}{
-			"expression":   fmt.Sprintf("%s and %s>={$SCORE.MIN} and %s", s.triggerItemExpr, s.scoreMacro, cond),
-			"description":  fmt.Sprintf("[%s] %s", b.label, s.triggerDesc),
-			"manual_close": 1,
-			"priority":     b.priority,
-			"comments":     s.triggerComment,
-		}
-		if s.triggerURL != "" {
-			trigger["url"] = s.triggerURL
-		}
-		if len(s.triggerTags) > 0 {
-			trigger["tags"] = s.triggerTags
-		}
-		if _, err := p.c.Call(ctx, "triggerprototype.create", trigger); err != nil {
-			return fmt.Errorf("trigger prototype [%s]: %w", b.label, err)
-		}
+	// One trigger prototype per report host; its severity is set at discovery by
+	// the LLD overrides above (from the finding's {#...SEVERITY} band). This
+	// replaces the old prototype-per-band scheme that created 4x the triggers.
+	trigger := map[string]interface{}{
+		"expression":   fmt.Sprintf("%s and %s>={$SCORE.MIN}", s.triggerItemExpr, s.scoreMacro),
+		"description":  s.triggerDesc,
+		"manual_close": 1,
+		"priority":     model.SeverityFor(0).Priority, // fallback; overrides set the real severity
+		"comments":     s.triggerComment,
+	}
+	if s.triggerURL != "" {
+		trigger["url"] = s.triggerURL
+	}
+	if len(s.triggerTags) > 0 {
+		trigger["tags"] = s.triggerTags
+	}
+	if _, err := p.c.Call(ctx, "triggerprototype.create", trigger); err != nil {
+		return fmt.Errorf("trigger prototype: %w", err)
 	}
 	p.log.Info("created virtual host", "name", s.name, "id", hostID)
 	return nil

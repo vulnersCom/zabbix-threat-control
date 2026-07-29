@@ -83,9 +83,10 @@ func TestProvisionVirtualHosts(t *testing.T) {
 	if got := countCalls(mock.Calls, "discoveryrule.create"); got != 3 {
 		t.Errorf("discoveryrule.create = %d, want 3", got)
 	}
-	// 3 hosts x 4 severity bands (Disaster/High/Average/Warning).
-	if got := countCalls(mock.Calls, "triggerprototype.create"); got != 12 {
-		t.Errorf("triggerprototype.create = %d, want 12", got)
+	// One trigger prototype per report host; severity is set by LLD overrides
+	// (F3), not by a prototype-per-band, so 3 not 12.
+	if got := countCalls(mock.Calls, "triggerprototype.create"); got != 3 {
+		t.Errorf("triggerprototype.create = %d, want 3", got)
 	}
 	// statistics: 5 aggregate items + 11 histogram buckets = 16
 	if got := countCalls(mock.Calls, "item.create"); got != 16 {
@@ -124,6 +125,37 @@ func TestProvisionTrapperHostsSet(t *testing.T) {
 	}
 	if checked == 0 {
 		t.Fatal("no trapper create calls seen")
+	}
+}
+
+// F3: each discovery rule carries one LLD override per severity band that sets
+// the discovered trigger's severity, so a single trigger prototype (not four)
+// still yields per-CVSS Disaster/High/Average/Warning.
+func TestProvisionSeverityOverrides(t *testing.T) {
+	mock := &zabbix.Mock{CallFunc: createResponder()}
+	if err := testProvisioner(mock).Run(context.Background(), Flags{VHosts: true}); err != nil {
+		t.Fatal(err)
+	}
+	seen := 0
+	for _, c := range mock.Calls {
+		if c.Method != "discoveryrule.create" {
+			continue
+		}
+		seen++
+		params := c.Params.(map[string]interface{})
+		ov, ok := params["overrides"].([]map[string]interface{})
+		if !ok || len(ov) != 4 {
+			t.Fatalf("discoveryrule overrides = %v, want 4 bands", params["overrides"])
+		}
+		for _, o := range ov {
+			ops := o["operations"].([]map[string]interface{})
+			if _, hasSev := ops[0]["opseverity"]; !hasSev {
+				t.Errorf("override %v missing opseverity", o["name"])
+			}
+		}
+	}
+	if seen != 3 {
+		t.Errorf("discoveryrule.create = %d, want 3", seen)
 	}
 }
 

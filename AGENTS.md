@@ -146,7 +146,8 @@ whitelisted `vulners.fix[<pkg>]` UserParameter drained by a host-side worker
 | `provision` auth errors | Wrong `ZABBIX_URL` or credentials; token needs API access; user needs write on the Vulners group/templates. |
 | install: `could not resolve latest release` | Only pre-release tags exist — pin `ZTC_VERSION=vX.Y.Z`. |
 | Windows host reports nothing | Smart Audit works on any Zabbix version; confirm `vulners.win.software`/`vulners.win.kb` return data via `zabbix_get`. |
-| `Problems by severity` all "Not classified" | Old provisioned objects — re-run `ztc provision --all` to refresh triggers/dashboard. |
+| `Problems by severity` all "Not classified" | Old provisioned objects — re-run `ztc provision --all` (idempotent) to refresh the dashboard. |
+| Zabbix server OOM / `out of memory ... CacheSize` after a scan | Too many findings became objects (each kept (vuln, host) pair = 1 item + 1 trigger). Raise `min_cvss` (e.g. 7) to keep only higher-severity findings, and/or raise the server's `CacheSize`. |
 
 ## Commands
 

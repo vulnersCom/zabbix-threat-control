@@ -207,6 +207,7 @@ func runScan(args []string) error {
 
 	runner := scan.New(col, aud, push, scan.Options{
 		Entities:  entities(cfg),
+		MinCVSS:   cfg.MinCVSS,
 		NoPush:    *nopush,
 		PushDelay: *pushDelay,
 	}, log)
