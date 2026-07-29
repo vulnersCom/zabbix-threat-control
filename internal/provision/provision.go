@@ -153,8 +153,11 @@ func (p *Provisioner) createTemplate(ctx context.Context) error {
 }
 
 func (p *Provisioner) createOneTemplate(ctx context.Context, groupID, host, name string, items []tmplItem) error {
-	if err := p.backupIfExists(ctx, "template", "host", host); err != nil {
+	if id, err := p.existing(ctx, "template", "host", host); err != nil {
 		return err
+	} else if id != "" {
+		p.log.Info("collection template already exists, skipping", "name", name)
+		return nil
 	}
 	res, err := p.c.Call(ctx, "template.create", map[string]interface{}{
 		"host":   host,
@@ -276,8 +279,11 @@ func (p *Provisioner) createVirtualHosts(ctx context.Context) error {
 }
 
 func (p *Provisioner) createVirtualHost(ctx context.Context, groupID string, s vhostSpec) error {
-	if err := p.backupIfExists(ctx, "host", "host", s.host); err != nil {
+	if id, err := p.existing(ctx, "host", "host", s.host); err != nil {
 		return err
+	} else if id != "" {
+		p.log.Info("virtual host already exists, skipping", "name", s.name)
+		return nil
 	}
 	hostID, err := p.createBareHost(ctx, s.host, s.name, groupID, true)
 	if err != nil {
@@ -340,8 +346,11 @@ func (p *Provisioner) createVirtualHost(ctx context.Context, groupID string, s v
 
 func (p *Provisioner) createStatisticsHost(ctx context.Context, groupID string) error {
 	e := p.cfg.Entities
-	if err := p.backupIfExists(ctx, "host", "host", e.StatisticsHost); err != nil {
+	if id, err := p.existing(ctx, "host", "host", e.StatisticsHost); err != nil {
 		return err
+	} else if id != "" {
+		p.log.Info("statistics host already exists, skipping", "name", e.StatisticsName)
+		return nil
 	}
 	hostID, err := p.createBareHost(ctx, e.StatisticsHost, e.StatisticsName, groupID, false)
 	if err != nil {
@@ -484,9 +493,16 @@ func (p *Provisioner) createGraphs(ctx context.Context) (median, ratio string) {
 
 func (p *Provisioner) createDashboard(ctx context.Context) error {
 	e := p.cfg.Entities
+	// Dashboard column count went from 24 (<=6.2) to 72 (>=6.4). Widget x/width
+	// are authored in the 24-column grid; scale them so the layout stays full-
+	// width on newer Zabbix instead of collapsing to a third (F5).
+	cols := 1
+	if p.atLeast(ctx, 6, 4) {
+		cols = 3
+	}
 	problems := func(name, hostID string, x, y int) map[string]interface{} {
 		return map[string]interface{}{
-			"type": "problems", "name": name, "x": x, "y": y, "width": 12, "height": 8,
+			"type": "problems", "name": name, "x": x * cols, "y": y, "width": 12 * cols, "height": 8,
 			"fields": []map[string]interface{}{
 				{"type": 0, "name": "show_lines", "value": 100},
 				{"type": 3, "name": "hostids.0", "value": hostID},
@@ -495,7 +511,7 @@ func (p *Provisioner) createDashboard(ctx context.Context) error {
 	}
 	graphWidget := func(name, graphID string, x, y int) map[string]interface{} {
 		return map[string]interface{}{
-			"type": "graph", "name": name, "x": x, "y": y, "width": 12, "height": 8,
+			"type": "graph", "name": name, "x": x * cols, "y": y, "width": 12 * cols, "height": 8,
 			"fields": []map[string]interface{}{
 				{"type": 0, "name": "source_type", "value": 0}, // 0 = graph
 				{"type": 6, "name": "graphid", "value": graphID},
@@ -516,7 +532,7 @@ func (p *Provisioner) createDashboard(ctx context.Context) error {
 	// carry real CVSS-based priorities).
 	if groupID != "" {
 		widgets = append(widgets, map[string]interface{}{
-			"type": "problemsbysv", "name": "Problems by severity", "x": 0, "y": 0, "width": 24, "height": 4,
+			"type": "problemsbysv", "name": "Problems by severity", "x": 0, "y": 0, "width": 24 * cols, "height": 4,
 			"fields": []map[string]interface{}{{"type": 2, "name": "groupids.0", "value": groupID}},
 		})
 	}
@@ -532,18 +548,29 @@ func (p *Provisioner) createDashboard(ctx context.Context) error {
 		widgets = append(widgets, graphWidget("CVSS Score ratio by hosts", ratioGraph, 0, 20))
 	}
 
-	if err := p.backupIfExists(ctx, "dashboard", "name", e.Dashboard); err != nil {
-		return err
-	}
-	_, err := p.c.Call(ctx, "dashboard.create", map[string]interface{}{
+	dashParams := map[string]interface{}{
 		"name":    e.Dashboard,
 		"private": 0,
 		"pages":   []map[string]interface{}{{"widgets": widgets}},
-	})
+	}
+	// Idempotent: refresh an existing dashboard in place rather than failing on
+	// the duplicate name, so re-provisioning picks up new widgets/graphs (F6).
+	existingDash, err := p.existing(ctx, "dashboard", "name", e.Dashboard)
 	if err != nil {
 		return err
 	}
-	p.log.Info("created dashboard", "name", e.Dashboard, "graphs", medianGraph != "" && ratioGraph != "")
+	verb := "created"
+	if existingDash != "" {
+		dashParams["dashboardid"] = existingDash
+		_, err = p.c.Call(ctx, "dashboard.update", dashParams)
+		verb = "updated"
+	} else {
+		_, err = p.c.Call(ctx, "dashboard.create", dashParams)
+	}
+	if err != nil {
+		return err
+	}
+	p.log.Info(verb+" dashboard", "name", e.Dashboard, "graphs", medianGraph != "" && ratioGraph != "")
 	return nil
 }
 
@@ -567,18 +594,14 @@ func (p *Provisioner) hostID(ctx context.Context, host string) (string, error) {
 	}, "hostid")
 }
 
-// backupIfExists renames+disables an existing object so re-provisioning is safe,
-// mirroring prepare.py's .bkp behaviour (best-effort; only rename is attempted).
-func (p *Provisioner) backupIfExists(ctx context.Context, obj, field, value string) error {
-	id, err := p.getID(ctx, obj+".get", map[string]interface{}{
+// existing returns the id of an object that already exists (by field=value), or
+// "" if none. Provision uses it to stay idempotent — callers skip or update
+// instead of blindly *.create-ing and failing on a duplicate name (F6).
+func (p *Provisioner) existing(ctx context.Context, obj, field, value string) (string, error) {
+	return p.getID(ctx, obj+".get", map[string]interface{}{
 		"filter": map[string]interface{}{field: value},
 		"output": []string{obj + "id"},
 	}, obj+"id")
-	if err != nil || id == "" {
-		return err
-	}
-	p.log.Warn("object already exists, leaving as-is (manual cleanup recommended)", "type", obj, field, value, "id", id)
-	return nil
 }
 
 func (p *Provisioner) getID(ctx context.Context, method string, params interface{}, idField string) (string, error) {

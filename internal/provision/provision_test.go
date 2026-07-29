@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/vulnersCom/zabbix-threat-control/internal/config"
@@ -123,6 +124,31 @@ func TestProvisionTrapperHostsSet(t *testing.T) {
 	}
 	if checked == 0 {
 		t.Fatal("no trapper create calls seen")
+	}
+}
+
+// Regression for F6: a second `provision --all` must not fail on duplicate
+// names. When objects already exist, template/host creates are skipped and the
+// dashboard is updated in place (not re-created).
+func TestProvisionIdempotent(t *testing.T) {
+	responder := func(ctx context.Context, method string, params interface{}) (json.RawMessage, error) {
+		if strings.HasSuffix(method, ".get") {
+			// One row carrying every id field getID might ask for.
+			return json.RawMessage(`[{"templateid":"10","hostid":"20","dashboardid":"70","groupid":"1","graphid":"5"}]`), nil
+		}
+		return createResponder()(ctx, method, params)
+	}
+	mock := &zabbix.Mock{CallFunc: responder}
+	if err := testProvisioner(mock).Run(context.Background(), Flags{Template: true, VHosts: true, Dashboard: true}); err != nil {
+		t.Fatalf("re-provision must be idempotent, got: %v", err)
+	}
+	for _, m := range []string{"template.create", "host.create", "discoveryrule.create", "dashboard.create"} {
+		if got := countCalls(mock.Calls, m); got != 0 {
+			t.Errorf("%s called %d times on re-provision, want 0 (should skip existing)", m, got)
+		}
+	}
+	if got := countCalls(mock.Calls, "dashboard.update"); got != 1 {
+		t.Errorf("dashboard.update = %d, want 1 (refresh in place)", got)
 	}
 }
 
