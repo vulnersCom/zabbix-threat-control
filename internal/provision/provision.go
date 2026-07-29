@@ -369,18 +369,22 @@ func (p *Provisioner) createStatisticsHost(ctx context.Context, groupID string) 
 		})
 		return err
 	}
-	for _, s := range []struct{ name, key string }{
-		{"CVSS Score - Total Hosts", "vulners.TotalHosts"},
-		{"CVSS Score - Maximum", "vulners.scoreMaximum"},
-		{"CVSS Score - Average", "vulners.scoreAverage"},
-		{"CVSS Score - Minimum", "vulners.scoreMinimum"},
+	// TotalHosts is an integer count; the CVSS aggregates are decimals ("9.8") and
+	// must be float (value_type 0) — as unsigned (3) they land in NOT SUPPORTED on
+	// 6.0 and are silently truncated to "9" on 7.x (F7).
+	for _, s := range []struct {
+		name, key string
+		valueType int
+	}{
+		{"CVSS Score - Total Hosts", "vulners.TotalHosts", 3},
+		{"CVSS Score - Maximum", "vulners.scoreMaximum", 0},
+		{"CVSS Score - Average", "vulners.scoreAverage", 0},
+		{"CVSS Score - Minimum", "vulners.scoreMinimum", 0},
+		{"CVSS Score - Median", "vulners.scoreMedian", 0},
 	} {
-		if err := trapper(s.name, s.key, 3); err != nil {
+		if err := trapper(s.name, s.key, s.valueType); err != nil {
 			return err
 		}
-	}
-	if err := trapper("CVSS Score - Median", "vulners.scoreMedian", 0); err != nil {
-		return err
 	}
 	for i := 0; i <= 10; i++ {
 		if err := trapper(fmt.Sprintf("CVSS Score - Hosts with a score ~ %d", i), fmt.Sprintf("vulners.hostsCountScore%d", i), 3); err != nil {

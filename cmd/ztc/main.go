@@ -235,7 +235,9 @@ func runScan(args []string) error {
 	if *daemon {
 		return runDaemon(ctx, cycle, cfg.Schedule.D(), log)
 	}
-	_ = once
+	if !*once {
+		return fmt.Errorf("nothing to do: --once=false without --daemon; pass --daemon to run continuously")
+	}
 	cycle(ctx)
 	return nil
 }
