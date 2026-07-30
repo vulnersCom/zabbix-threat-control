@@ -206,7 +206,10 @@ func runScan(args []string) error {
 	autoFix := fs.Bool("auto-fix", false, "remediate problems acknowledged by trusted users after each cycle")
 	nopush := fs.Bool("nopush", false, "build data but do not push to Zabbix")
 	limit := fs.Int("limit", 0, "limit number of hosts fetched from Zabbix (0 = all)")
-	pushDelay := fs.Duration("push-delay", 5*time.Minute, "delay between LLD and data batches")
+	// Must exceed the server's CacheUpdateFrequency (60s by default): the data
+	// batch addresses items the LLD batch has just created, and the trapper drops
+	// values for items the server does not have in its configuration cache yet.
+	pushDelay := fs.Duration("push-delay", 5*time.Minute, "delay between the LLD and data batches; keep it above the Zabbix server's CacheUpdateFrequency (default 60s) or the first cycle's values are dropped")
 	_ = fs.Parse(args)
 
 	cfg, log, err := loadConfig(*cfgPath)

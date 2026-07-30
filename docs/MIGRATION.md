@@ -179,8 +179,14 @@ Once the new scan is confirmed (Step 8):
 ## Step 8 — Validate
 
 ```sh
-ztc scan --once --push-delay 10s     # one full cycle
+ztc scan --once                      # one full cycle (default --push-delay 5m)
 ```
+
+Keep `--push-delay` above the server's `CacheUpdateFrequency` (60s by default).
+The data batch writes to items the LLD batch has just created, and the trapper
+drops values for items the server has not yet loaded into its configuration
+cache — so a shorter delay silently loses the first cycle's values (the objects
+appear, the values do not).
 
 Then in Zabbix: *Monitoring → Dashboards → Vulners* fills in, *Problems* shows
 `Vulners - …` findings scored by severity, and *Problems → Filter → Tags:

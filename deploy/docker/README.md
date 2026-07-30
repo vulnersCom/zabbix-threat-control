@@ -55,7 +55,15 @@ default) and learns about the new items.
 
 ```sh
 docker compose run --rm ztc scan --once --push-delay 10s
+docker compose exec zabbix-server zabbix_server -R config_cache_reload
+docker compose run --rm ztc scan --once --push-delay 10s   # second cycle fills the values
 ```
+
+Why twice: the data batch writes to items the LLD batch has just created, and the
+trapper drops values for items that are not in the server's configuration cache
+yet (`CacheUpdateFrequency`, 60s by default). A `--push-delay` above that — the
+5m default — needs only one cycle; shortening it for a demo costs you the first
+one unless you reload the cache in between.
 
 Results appear on the four board hosts and the **Vulners** dashboard. With a
 placeholder API key the audit returns HTTP 401 and hosts are skipped (collection still

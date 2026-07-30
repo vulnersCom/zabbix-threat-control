@@ -156,6 +156,7 @@ whitelisted `vulners.fix[<pkg>]` UserParameter drained by a host-side worker
 |---------|--------------------|
 | Report hosts stay empty | Collection template not linked (step 4), or agent2 lacks the `vulners.*` UserParameter. Test with `zabbix_get -s <host> -k vulners.os`. |
 | `scan` audits but nothing appears | sender can't reach the trapper — check `ZABBIX_SERVER_FQDN`/`ZABBIX_SERVER_PORT` (10051) and that the report hosts exist. |
+| First cycle creates the items but leaves them empty | `--push-delay` is below the server's `CacheUpdateFrequency` (60s default), so the trapper dropped values for items the LLD batch had only just created. Keep the 5m default, or reload the cache (`zabbix_server -R config_cache_reload`) between the batches. The next cycle fills them in. |
 | `provision` auth errors | Wrong `ZABBIX_URL` or credentials; token needs API access; user needs write on the Vulners group/templates. |
 | install: `could not resolve latest release` | Only pre-release tags exist — pin `ZTC_VERSION=vX.Y.Z`. |
 | Windows host reports nothing | Smart Audit works on any Zabbix version; confirm `vulners.win.software`/`vulners.win.kb` return data via `zabbix_get`. |
