@@ -74,8 +74,27 @@ Usage:
   ztc upgrade    [--version vX.Y.Z]   self-update the binary from GitHub Releases
   ztc version    [--check]            print version (and check for a newer release)
 
-Environment overrides: VULNERS_API_KEY, ZABBIX_URL, ZABBIX_USER, ZABBIX_PASSWORD,
-ZABBIX_TOKEN, ZABBIX_SERVER_FQDN, ZABBIX_SERVER_PORT.
+Every setting can come from a YAML file (--config, see config.example.yaml) or from
+the environment; the environment wins.
+
+Environment:
+  VULNERS_API_KEY         Vulners API key (required)
+  VULNERS_BASE_URL        self-hosted / proxy Vulners endpoint
+  VULNERS_CLIENT_CERT     client certificate (PEM) for an mTLS Vulners endpoint
+  VULNERS_CLIENT_KEY      client key for the above
+  ZABBIX_URL              Zabbix frontend URL for the JSON-RPC API (required)
+  ZABBIX_TOKEN            API token — or ZABBIX_USER + ZABBIX_PASSWORD (one required)
+  ZABBIX_USER
+  ZABBIX_PASSWORD
+  ZABBIX_SERVER_FQDN      zabbix-sender target (server or proxy)
+  ZABBIX_SERVER_PORT      trapper port (default 10051)
+  ZABBIX_TRAPPER_HOSTS    "Allowed hosts" set on the trapper items provision creates;
+                          unset = accept from any host
+  ZTC_MIN_CVSS            drop findings below this CVSS before creating objects
+                          (main lever on object count; default 1)
+  ZTC_TRUSTED_USERS       comma-separated Zabbix users who may authorise --auto-fix
+  ZTC_SCHEDULE            daemon scan interval (e.g. 24h)
+  ZTC_LOG_LEVEL           debug | info | warn | error
 `)
 }
 
@@ -171,7 +190,11 @@ func runUpgrade(args []string) error {
 		return err
 	}
 	log.Info("upgrade complete", "installed", installed)
-	fmt.Println("Restart the service to run the new version:  sudo systemctl restart ztc")
+	// Most of ztc's behaviour lives in the Zabbix objects provision created, so a
+	// new binary on its own changes nothing (F14).
+	fmt.Println("Next, to apply this version's fixes to the Zabbix objects:")
+	fmt.Println("  sudo -u ztc env $(cat /etc/ztc/ztc.env | xargs) ztc provision --all")
+	fmt.Println("  sudo systemctl restart ztc")
 	return nil
 }
 

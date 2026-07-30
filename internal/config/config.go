@@ -178,14 +178,20 @@ func Load(path string) (Config, error) {
 			return cfg, fmt.Errorf("parse config %q: %w", path, err)
 		}
 	}
-	applyEnv(&cfg)
+	if err := applyEnv(&cfg); err != nil {
+		return cfg, err
+	}
 	if err := cfg.Validate(); err != nil {
 		return cfg, err
 	}
 	return cfg, nil
 }
 
-func applyEnv(cfg *Config) {
+// applyEnv overlays the environment on cfg. A malformed numeric/duration value is
+// an error rather than a silent fallback: quietly ignoring ZTC_MIN_CVSS=hgh would
+// provision every finding as a Zabbix object, which is the failure it exists to
+// prevent.
+func applyEnv(cfg *Config) error {
 	if v := os.Getenv("VULNERS_API_KEY"); v != "" {
 		cfg.Vulners.APIKey = v
 	}
@@ -217,17 +223,31 @@ func applyEnv(cfg *Config) {
 		cfg.Zabbix.TrapperHosts = v
 	}
 	if v := os.Getenv("ZABBIX_SERVER_PORT"); v != "" {
-		if p, err := strconv.Atoi(v); err == nil {
-			cfg.Zabbix.ServerPort = p
+		p, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("ZABBIX_SERVER_PORT %q is not a number", v)
 		}
+		cfg.Zabbix.ServerPort = p
 	}
 	if v := os.Getenv("ZTC_SCHEDULE"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
-			cfg.Schedule = Duration(d)
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			return fmt.Errorf("ZTC_SCHEDULE %q is not a duration (e.g. 1h, 24h)", v)
 		}
+		cfg.Schedule = Duration(d)
 	}
 	if v := os.Getenv("ZTC_LOG_LEVEL"); v != "" {
 		cfg.LogLevel = v
+	}
+	// min_cvss is the main lever on how many Zabbix objects a scan materialises, and
+	// neither the installer nor the compose files hand ztc a YAML file — so it needs
+	// an env form too, or the "raise min_cvss" advice is unactionable (F15).
+	if v := os.Getenv("ZTC_MIN_CVSS"); v != "" {
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return fmt.Errorf("ZTC_MIN_CVSS %q is not a number (0-10)", v)
+		}
+		cfg.MinCVSS = f
 	}
 	// The one-command installer writes only /etc/ztc/ztc.env, never a YAML file,
 	// so --auto-fix's trusted_users gate needs an env form too (F9).
@@ -240,6 +260,7 @@ func applyEnv(cfg *Config) {
 		}
 		cfg.Fix.TrustedUsers = users
 	}
+	return nil
 }
 
 // Validate checks that the minimum required secrets are present.

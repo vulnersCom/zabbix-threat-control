@@ -64,10 +64,12 @@ installer collects these into `/etc/ztc/ztc.env`; every knob is documented in
 | `ZTC_SCHEDULE` | | daemon scan interval (e.g. `24h`) |
 | `ZTC_LOG_LEVEL` | | `debug` / `info` / `warn` / `error` |
 | `ZTC_TRUSTED_USERS` | | comma-separated Zabbix usernames who may authorise `--auto-fix` (env form of `fix.trusted_users`) |
+| `ZTC_MIN_CVSS` | | drop findings below this CVSS before creating objects — the main lever on object count (env form of `min_cvss`) |
+| `ZABBIX_TRAPPER_HOSTS` | | `Allowed hosts` on the trapper items provision creates; unset = accept from any host (env form of `zabbix.trapper_hosts`) |
 
-The YAML file also tunes non-secret behaviour: `min_cvss` (drop findings below a
-score), `fix.trusted_users` (who may authorise auto-fix), and the `entities.*`
-names of the group/templates/report hosts/dashboard.
+`ztc --help` lists the same set. The only settings with no env form are the
+`entities.*` names of the group/templates/report hosts/dashboard — pass a YAML
+file (`--config`) if you need to rename those.
 
 ## 3. Provision the Zabbix objects
 
@@ -81,8 +83,18 @@ Windows), the four **report hosts** — `Vulners - Hosts`, `- Bulletins`,
 triggers, and the **Vulners dashboard**. Granular flags exist:
 `--template`, `--vhosts`, `--dashboard`.
 
+Re-running it is a **reconciliation**, not a no-op: objects that already exist are
+updated in place (trapper `Allowed hosts`, `value_type`, LLD severity overrides,
+trigger prototypes) and the log names what changed. **Run it after every `ztc`
+upgrade** — the new binary alone does not fix objects the old one created; see
+[Upgrading an existing ztc install](docs/MIGRATION.md#upgrading-an-existing-ztc-install).
+
 - **Verify:** *Data collection → Templates* shows `Template Vulners OS-Report Linux`/`… Windows`;
   *Monitoring → Dashboards → Vulners* exists.
+- *Note:* with `zabbix.trapper_hosts` unset, provision logs a warning and sets
+  `Allowed hosts` to `0.0.0.0/0,::/0` (accept from anywhere) — required for Zabbix
+  8.0, which otherwise rejects ztc's pushes. Set it to ztc's source address to
+  narrow that down.
 
 ## 4. Link the collection template to monitored hosts
 
@@ -147,8 +159,10 @@ whitelisted `vulners.fix[<pkg>]` UserParameter drained by a host-side worker
 | `provision` auth errors | Wrong `ZABBIX_URL` or credentials; token needs API access; user needs write on the Vulners group/templates. |
 | install: `could not resolve latest release` | Only pre-release tags exist — pin `ZTC_VERSION=vX.Y.Z`. |
 | Windows host reports nothing | Smart Audit works on any Zabbix version; confirm `vulners.win.software`/`vulners.win.kb` return data via `zabbix_get`. |
-| `Problems by severity` all "Not classified" | Old provisioned objects — re-run `ztc provision --all` (idempotent) to refresh the dashboard. |
-| Zabbix server OOM / `out of memory ... CacheSize` after a scan | Too many findings became objects (each kept (vuln, host) pair = 1 item + 1 trigger). Raise `min_cvss` (e.g. 7) to keep only higher-severity findings, and/or raise the server's `CacheSize`. |
+| `Problems by severity` all "Not classified" | Old provisioned objects — re-run `ztc provision --all` to bring them up to date. |
+| Nothing arrives after an **upgrade** (`scan cycle complete`, Zabbix empty); server log says `trap: connection from … rejected, allowed hosts: "127.0.0.1,::1"` | The Zabbix objects still carry the old `Allowed hosts`. Re-run `ztc provision --all` with the new binary — see [Upgrading an existing ztc install](docs/MIGRATION.md#upgrading-an-existing-ztc-install). |
+| CVSS statistics show `9` instead of `9.8` (or `NOT SUPPORTED` on 6.0) | Same cause: statistics items provisioned as unsigned by an older ztc. `ztc provision --all` flips them to float. |
+| Zabbix server OOM / `out of memory ... CacheSize` after a scan | Too many findings became objects (each kept (vuln, host) pair = 1 item + 1 trigger). Raise `min_cvss` / `ZTC_MIN_CVSS` (e.g. 7) to keep only higher-severity findings, and/or raise the server's `CacheSize`. One Windows host is worth ~5.7k items at `min_cvss: 1`. |
 
 ## Commands
 

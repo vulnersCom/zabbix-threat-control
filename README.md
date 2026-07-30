@@ -101,15 +101,18 @@ override the YAML file). Full example: [`config.example.yaml`](config.example.ya
 | `ZABBIX_USER` / `ZABBIX_PASSWORD` | … or user + password |
 | `ZABBIX_SERVER_FQDN` / `ZABBIX_SERVER_PORT` | zabbix-sender target |
 | `ZTC_SCHEDULE` | daemon scan interval (e.g. `1h`) |
+| `ZTC_MIN_CVSS` | drop findings below this CVSS before creating objects |
+
+`ztc --help` lists the full set.
 
 ## Commands
 
 ```sh
 ztc scan --daemon                 # run the scan loop on a schedule
 ztc scan --once                   # a single cycle
-ztc provision --all               # create templates, report hosts, dashboard
+ztc provision --all               # create/reconcile templates, report hosts, dashboard
 ztc fix --host H --package P      # remediate a package (whitelisted, opt-in)
-ztc upgrade                       # self-update to the latest release
+ztc upgrade                       # self-update, then re-run `provision --all`
 ztc version --check               # print version and check for updates
 ```
 

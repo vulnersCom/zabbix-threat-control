@@ -10,7 +10,10 @@
 #
 # Recognised env: ZTC_VERSION, VULNERS_API_KEY, VULNERS_BASE_URL, ZABBIX_URL,
 #   ZABBIX_TOKEN | (ZABBIX_USER + ZABBIX_PASSWORD), ZABBIX_SERVER_FQDN,
-#   ZABBIX_SERVER_PORT, ZTC_SCHEDULE, ZTC_PROVISION (1 to run provision --all).
+#   ZABBIX_SERVER_PORT, ZABBIX_TRAPPER_HOSTS, ZTC_SCHEDULE, ZTC_MIN_CVSS,
+#   ZTC_TRUSTED_USERS, ZTC_PROVISION (1 to run provision --all).
+# The optional ones are only written to the env file when set; `ztc --help` lists
+# what each does.
 set -eu
 
 REPO="zzeloff/zabbix-threat-control"
@@ -116,6 +119,12 @@ umask 077
   echo "ZABBIX_SERVER_FQDN=$ZABBIX_SERVER_FQDN"
   echo "ZABBIX_SERVER_PORT=$ZABBIX_SERVER_PORT"
   echo "ZTC_SCHEDULE=$ZTC_SCHEDULE"
+  # Optional knobs: written only when supplied, so the file stays minimal. These
+  # have no other home on the installer path — it writes no YAML file.
+  [ -n "${ZABBIX_TRAPPER_HOSTS:-}" ] && echo "ZABBIX_TRAPPER_HOSTS=$ZABBIX_TRAPPER_HOSTS"
+  [ -n "${ZTC_MIN_CVSS:-}" ]        && echo "ZTC_MIN_CVSS=$ZTC_MIN_CVSS"
+  [ -n "${ZTC_TRUSTED_USERS:-}" ]   && echo "ZTC_TRUSTED_USERS=$ZTC_TRUSTED_USERS"
+  :  # keep the block's status 0 for `set -e` when none of the optionals are set
 } > "$ENV_FILE"
 chown "$SVC_USER:$SVC_USER" "$ENV_FILE"; chmod 600 "$ENV_FILE"
 info "wrote $ENV_FILE"

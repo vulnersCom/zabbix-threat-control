@@ -63,6 +63,7 @@ ZABBIX_TOKEN=...
 ZABBIX_SERVER_FQDN=zbx
 ZABBIX_SERVER_PORT=10051
 ZTC_SCHEDULE=1h
+# optional: ZTC_MIN_CVSS=7  ZTC_TRUSTED_USERS=Admin  ZABBIX_TRAPPER_HOSTS=10.0.0.7
 ENV
 sudo cp deploy/systemd/ztc.service /etc/systemd/system/
 sudo systemctl daemon-reload && sudo systemctl enable --now ztc
@@ -92,3 +93,21 @@ curl -fsSL https://raw.githubusercontent.com/vulnersCom/zabbix-threat-control/ma
 
 If your environment forbids remote command execution or outbound internet, use
 method 1 or 2 instead (download the binary/image once, then install offline).
+
+---
+
+## Upgrading
+
+Whichever method you used, an upgrade is **two** steps — the binary and the Zabbix
+objects it provisioned:
+
+```sh
+sudo ztc upgrade                                                     # or: docker compose pull
+sudo -u ztc env $(cat /etc/ztc/ztc.env | xargs) ztc provision --all  # reconcile the objects
+sudo systemctl restart ztc
+```
+
+`provision --all` updates the objects it owns in place and logs what changed.
+Skipping it leaves the old behaviour in Zabbix — on Zabbix 8.0 that means the
+scanner reports success while the server rejects every push. Details:
+[`docs/MIGRATION.md`](../docs/MIGRATION.md#upgrading-an-existing-ztc-install).

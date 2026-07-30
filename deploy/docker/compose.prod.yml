@@ -17,6 +17,11 @@ services:
     restart: unless-stopped
     env_file: [ztc.env]
     command: ["scan", "--daemon"]
+    # ztc.env covers every runtime knob (see ztc.env.example). Mount a YAML file
+    # as well only to rename the Zabbix entities (entities.*), which has no env
+    # form — then add --config to the commands above and to `command` here:
+    # volumes: ["./ztc.yaml:/etc/ztc/ztc.yaml:ro"]
+    # command: ["scan", "--daemon", "--config", "/etc/ztc/ztc.yaml"]
     # Uncomment if your Zabbix runs on the Docker host (reach it as
     # host.docker.internal in ztc.env, e.g. ZABBIX_URL=http://host.docker.internal:8080):
     # extra_hosts: ["host.docker.internal:host-gateway"]

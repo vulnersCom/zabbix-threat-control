@@ -7,8 +7,10 @@ The `zabbix-agent2` service is built from `Dockerfile.agent` — an **Ubuntu 24.
 host running zabbix-agent2 with the ztc remediation pieces installed as on a real host
 (agent as the `zabbix` user; the `vulners.fix` worker under root cron). It ships a
 deliberately **old, vulnerable `openssl` (3.0.13-0ubuntu3)** so the full
-detect → fix → cleared cycle can be demonstrated. Zabbix's Ubuntu repository is
-amd64-only, so on an arm64 host the agent runs emulated (`platform: linux/amd64`).
+detect → fix → cleared cycle can be demonstrated. The image builds natively on
+both amd64 and arm64 — `Dockerfile.agent` picks the Zabbix repository by
+`TARGETARCH` (arm64 packages live in a separate `ubuntu-arm64` repository), so no
+QEMU emulation and no `platform:` override are involved.
 
 ## Prerequisites
 

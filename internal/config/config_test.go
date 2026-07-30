@@ -88,6 +88,49 @@ schedule: 12h
 	}
 }
 
+// F9/F15: the installer and the compose files hand ztc no YAML file, so every
+// knob an operator has to reach for must have an env form.
+func TestEnvOnlyKnobs(t *testing.T) {
+	t.Setenv("VULNERS_API_KEY", "k")
+	t.Setenv("ZABBIX_TOKEN", "t")
+	t.Setenv("ZABBIX_TRAPPER_HOSTS", "10.0.0.5")
+	t.Setenv("ZTC_TRUSTED_USERS", "Admin, ops")
+	t.Setenv("ZTC_MIN_CVSS", "7.5")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.MinCVSS != 7.5 {
+		t.Errorf("min_cvss = %v, want 7.5 (ZTC_MIN_CVSS)", cfg.MinCVSS)
+	}
+	if cfg.Zabbix.TrapperHosts != "10.0.0.5" {
+		t.Errorf("trapper_hosts = %q", cfg.Zabbix.TrapperHosts)
+	}
+	if len(cfg.Fix.TrustedUsers) != 2 || cfg.Fix.TrustedUsers[1] != "ops" {
+		t.Errorf("trusted_users = %v, want [Admin ops]", cfg.Fix.TrustedUsers)
+	}
+}
+
+// A typo in a numeric override must fail loudly: silently falling back would run
+// a scan at the default min_cvss and materialise every finding as a Zabbix object.
+func TestEnvRejectsMalformedNumbers(t *testing.T) {
+	for _, tc := range []struct{ env, value string }{
+		{"ZTC_MIN_CVSS", "hgh"},
+		{"ZTC_SCHEDULE", "1 hour"},
+		{"ZABBIX_SERVER_PORT", "10051x"},
+	} {
+		t.Run(tc.env, func(t *testing.T) {
+			t.Setenv("VULNERS_API_KEY", "k")
+			t.Setenv("ZABBIX_TOKEN", "t")
+			t.Setenv(tc.env, tc.value)
+			if _, err := Load(""); err == nil {
+				t.Fatalf("%s=%q accepted, want an error", tc.env, tc.value)
+			}
+		})
+	}
+}
+
 func TestValidateMissingSecrets(t *testing.T) {
 	cfg := Defaults()
 	if err := cfg.Validate(); err == nil {

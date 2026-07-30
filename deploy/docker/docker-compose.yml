@@ -174,6 +174,9 @@ services:
       ZABBIX_SERVER_FQDN: zabbix-server
       ZABBIX_SERVER_PORT: "10051"
       ZTC_SCHEDULE: ${ZTC_SCHEDULE:-1h}
+      # Raise in .env to shrink the provisioned object count (e.g. 7 = High and
+      # above) when the stand's default CacheSize starts complaining.
+      ZTC_MIN_CVSS: ${ZTC_MIN_CVSS:-1}
     depends_on:
       - zabbix-server
       - zabbix-web

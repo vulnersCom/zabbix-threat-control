@@ -45,7 +45,7 @@ entities:
 fix:
   key: vulners.fix              # whitelisted agent UserParameter (see deploy/agent)
   trusted_users:                # Zabbix usernames whose acknowledgement authorises --auto-fix
-    - Admin
+    - Admin                     # or env ZTC_TRUSTED_USERS (comma-separated)
   agent_port: 10050             # passive agent port for remediation
   agent_timeout: 60s
 
@@ -54,6 +54,6 @@ fix:
 # item + a trigger, so a fleet with many Windows hosts can create tens of
 # thousands of objects. Raise it (e.g. 7 = High and above) if provisioning
 # strains the server (watch CacheSize). 1 keeps essentially everything.
-min_cvss: 1
+min_cvss: 1          # or env ZTC_MIN_CVSS (the only form on the installer/docker paths)
 schedule: 24h        # daemon scan interval (env ZTC_SCHEDULE overrides)
 log_level: info

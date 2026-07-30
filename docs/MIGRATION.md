@@ -21,10 +21,15 @@ re-instrument the scanned hosts with the stock agent keys.
 | **Zabbix objects** | group, 1 template, report hosts, an **Action**, dashboard | same group / report hosts / dashboard, **2 templates, CVSS-scored triggers, `vulners.host` tags, no Action** |
 | **Zabbix version** | 3.4+ | 6.0 / 7.0 / 8.0 (auto-detected) |
 
-**Key consequence:** the report hosts and dashboard keep the **same names**, and
-`ztc provision --all` does *not* overwrite pre-existing objects. So you must
-**delete the old objects first** (Step 3), or provisioning will collide on
-duplicate names.
+**Key consequence:** the report hosts and dashboard keep the **same names**. ztc
+reconciles objects it recognises as its own, but the Python layout differs enough
+(one template, an Action, prototype-per-band triggers on differently-keyed rules)
+that you should **delete the old objects first** (Step 3) rather than let ztc
+adopt them.
+
+> Upgrading from an *earlier ztc* (not from Python) is a different, much shorter
+> job — see [Upgrading an existing ztc install](#upgrading-an-existing-ztc-install)
+> at the end.
 
 ## Before you start
 
@@ -189,3 +194,43 @@ need to revert before then: stop the `ztc` service, re-run the old `prepare.py`
 to recreate its objects, re-link the old `Vulners OS-Report` template, and
 re-enable the old cron. Keep the old `ztc.conf` until the new setup has run
 cleanly for a full cycle.
+
+## Upgrading an existing ztc install
+
+Upgrading the binary is not enough: most of what ztc does lives in **Zabbix
+objects** created at provision time (trapper `Allowed hosts`, item `value_type`,
+LLD severity overrides, trigger prototypes). A new binary against objects laid
+down by an older one keeps the old behaviour. So after every upgrade:
+
+```sh
+sudo ztc upgrade                  # or: docker compose pull
+sudo -u ztc env $(cat /etc/ztc/ztc.env | xargs) ztc provision --all
+sudo systemctl restart ztc
+```
+
+`provision --all` is a **reconciliation**: existing objects are updated in place,
+not skipped, and the log names what changed —
+
+```
+level=INFO msg="updated discovery rule" key=vulners.hosts_lld fields="[overrides trapper_hosts]"
+level=INFO msg="replaced stale trigger prototypes" rule=vulners.hosts_lld deleted=4
+level=INFO msg="updated statistics item" key=vulners.scoreMaximum fields="[trapper_hosts value_type]"
+level=INFO msg="reconciled collection template" name="Template Vulners OS-Report Linux"
+```
+
+Fields an operator may have tuned (item names, intervals, tags, extra host macros)
+are left alone. Replacing the trigger prototypes discards the currently discovered
+triggers and their open problems; the next scan cycle recreates them.
+
+**If you skipped this step**, the symptom depends on your Zabbix version. On
+**8.0** nothing arrives at all — the scan logs `scan cycle complete`, Zabbix stays
+empty, and the *server* log shows the real reason:
+
+```
+cannot process item "vulners.scoreMaximum" trap: connection from "10.0.0.7" rejected,
+allowed hosts: "127.0.0.1,::1"
+```
+
+On 6.0/7.x the data arrives but the CVSS statistics stay integer (`9` instead of
+`9.8`; `NOT SUPPORTED` on 6.0) and severities stay flat. Either way, running
+`provision --all` with the new binary fixes it — no manual object surgery.

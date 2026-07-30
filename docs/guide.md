@@ -191,7 +191,7 @@ fix:
   agent_port: 10050                # agent port ztc sends vulners.fix to
   agent_timeout: 60s
 
-min_cvss: 1                        # do not raise a problem below this score
+min_cvss: 1                        # drop findings below this before creating objects
 schedule: 24h                      # daemon scan interval
 log_level: info
 ```
@@ -259,6 +259,11 @@ ztc provision --all
 
 You then only **link the template** to your real hosts (UI: Data collection → Hosts →
 host → Templates) so they expose the `vulners.*` keys.
+
+Re-running it reconciles: objects that exist are updated to what this version of
+ztc expects, not skipped. That is what makes an upgrade land — run
+`ztc provision --all` after every `ztc upgrade`
+([`docs/MIGRATION.md`](MIGRATION.md#upgrading-an-existing-ztc-install)).
 
 ---
 
