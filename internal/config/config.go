@@ -263,13 +263,35 @@ func applyEnv(cfg *Config) error {
 	return nil
 }
 
-// Validate checks that the minimum required secrets are present.
+// Validate checks that the minimum required secrets are present and that the
+// numeric settings are in range. Range checks live here, not in applyEnv, so they
+// cover the YAML file too — `min_cvss: 42` is as wrong as ZTC_MIN_CVSS=42.
 func (c Config) Validate() error {
 	if c.Vulners.APIKey == "" {
 		return fmt.Errorf("vulners api_key is required (set vulners.api_key or VULNERS_API_KEY)")
 	}
 	if c.Zabbix.Token == "" && (c.Zabbix.User == "" || c.Zabbix.Password == "") {
 		return fmt.Errorf("zabbix auth is required (set zabbix.token or zabbix.user+password)")
+	}
+	// CVSS is a 0-10 scale. Above 10 provisions objects whose {$SCORE.MIN} no
+	// finding can ever reach: everything looks healthy and nothing ever fires.
+	if c.MinCVSS < 0 || c.MinCVSS > 10 {
+		return fmt.Errorf("min_cvss must be between 0 and 10, got %g (set min_cvss or ZTC_MIN_CVSS)", c.MinCVSS)
+	}
+	// A non-positive interval panics time.NewTicker once `scan --daemon` reaches
+	// its loop, which under systemd's Restart=on-failure becomes a restart loop.
+	if c.Schedule.D() <= 0 {
+		return fmt.Errorf("schedule must be positive, got %s (set schedule or ZTC_SCHEDULE)", c.Schedule.D())
+	}
+	if err := validPort("zabbix.server_port (ZABBIX_SERVER_PORT)", c.Zabbix.ServerPort); err != nil {
+		return err
+	}
+	return validPort("fix.agent_port", c.Fix.AgentPort)
+}
+
+func validPort(name string, port int) error {
+	if port < 1 || port > 65535 {
+		return fmt.Errorf("%s must be between 1 and 65535, got %d", name, port)
 	}
 	return nil
 }

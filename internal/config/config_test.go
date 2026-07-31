@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestLoadDefaultsWithEnvSecrets(t *testing.T) {
@@ -128,6 +129,57 @@ func TestEnvRejectsMalformedNumbers(t *testing.T) {
 				t.Fatalf("%s=%q accepted, want an error", tc.env, tc.value)
 			}
 		})
+	}
+}
+
+// Out-of-range values parse fine but fail silently later: min_cvss 42 provisions
+// objects whose {$SCORE.MIN} no finding can reach, and schedule 0 panics
+// time.NewTicker inside the daemon. Both paths (YAML and env) go through Validate.
+func TestValidateRejectsOutOfRange(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		mutit func(*Config)
+	}{
+		{"min_cvss above 10", func(c *Config) { c.MinCVSS = 42 }},
+		{"min_cvss negative", func(c *Config) { c.MinCVSS = -5 }},
+		{"schedule zero", func(c *Config) { c.Schedule = 0 }},
+		{"schedule negative", func(c *Config) { c.Schedule = Duration(-time.Second) }},
+		{"server port zero", func(c *Config) { c.Zabbix.ServerPort = 0 }},
+		{"server port above 65535", func(c *Config) { c.Zabbix.ServerPort = 70000 }},
+		{"agent port above 65535", func(c *Config) { c.Fix.AgentPort = 70000 }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := Defaults()
+			cfg.Vulners.APIKey = "k"
+			cfg.Zabbix.Token = "t"
+			tc.mutit(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("accepted an out-of-range value, want an error")
+			}
+		})
+	}
+	// The boundaries themselves are legal: 0 keeps everything, 10 keeps only a
+	// perfect-score finding.
+	for _, v := range []float64{0, 10} {
+		cfg := Defaults()
+		cfg.Vulners.APIKey, cfg.Zabbix.Token = "k", "t"
+		cfg.MinCVSS = v
+		if err := cfg.Validate(); err != nil {
+			t.Errorf("min_cvss %v rejected: %v", v, err)
+		}
+	}
+}
+
+// Same check reached through the environment, which is the only path the
+// installer and the compose files have.
+func TestEnvRejectsOutOfRangeMinCVSS(t *testing.T) {
+	for _, v := range []string{"42", "-5"} {
+		t.Setenv("VULNERS_API_KEY", "k")
+		t.Setenv("ZABBIX_TOKEN", "t")
+		t.Setenv("ZTC_MIN_CVSS", v)
+		if _, err := Load(""); err == nil {
+			t.Errorf("ZTC_MIN_CVSS=%s accepted, want an error", v)
+		}
 	}
 }
 
