@@ -38,16 +38,32 @@ checksum:
   name_template: checksums.txt
 
 changelog:
-  use: github
-  sort: asc
-  filters:
-    exclude:
-      - "^docs:"
-      - "^test:"
-      - "^chore:"
+  # github-native lets GitHub compute "what changed since the previous release"
+  # instead of goreleaser walking git log. With `use: github` and no earlier tag
+  # on this line of history, v3.0.0 rendered every commit the repository ever had
+  # — including the pre-Go ones, twice, because the rewrite's history diverged
+  # from upstream. GitHub's own comparison has none of those failure modes.
+  use: github-native
 
 release:
   # owner/name are auto-detected from the git remote, so this works unchanged
   # in a fork or a test repository.
   draft: false
   prerelease: auto
+  # Prepend the human summary; the generated list follows underneath.
+  header: |
+    ## Install
+
+    ```sh
+    curl -fsSL https://raw.githubusercontent.com/vulnersCom/zabbix-threat-control/master/deploy/install.sh | sudo sh
+    ```
+
+    Or pull the image: `ghcr.io/vulnerscom/zabbix-threat-control:{{ .Version }}`.
+
+    Upgrading an existing install? Run `ztc provision --all` afterwards — a new
+    binary does not by itself update the Zabbix objects an older one created.
+    See [docs/MIGRATION.md](https://github.com/vulnersCom/zabbix-threat-control/blob/master/docs/MIGRATION.md#upgrading-an-existing-ztc-install).
+  footer: |
+    ---
+
+    Verified end-to-end against the Vulners API on live Zabbix 6.0, 7.0, 7.4 and 8.0.
