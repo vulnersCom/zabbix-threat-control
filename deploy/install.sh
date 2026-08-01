@@ -16,7 +16,10 @@
 # what each does.
 set -eu
 
-REPO="zzeloff/zabbix-threat-control"
+# Must match internal/selfupdate.Repo — the installer and `ztc upgrade` have to
+# resolve releases from the same repository, or an install and its self-update
+# drift apart (F4).
+REPO="vulnersCom/zabbix-threat-control"
 BIN_DIR="/usr/local/bin"
 CFG_DIR="/etc/ztc"
 ENV_FILE="$CFG_DIR/ztc.env"
