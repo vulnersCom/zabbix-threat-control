@@ -1,0 +1,198 @@
+# Test stand: Zabbix 7.0 (server + web + Postgres + agent2) plus the ztc scanner.
+#
+# Usage (from this directory):
+#   cp .env.example .env   # then set VULNERS_API_KEY
+#   docker compose up -d
+#   docker compose run --rm ztc provision --all
+#   # link the "Vulners OS-Report" template to the "Zabbix server" host (see README),
+#   # wait for the agent to report, then:
+#   docker compose run --rm ztc scan --once --push-delay 10s
+#
+# Web UI: http://localhost:8080  (Admin / zabbix)
+
+name: ztc-stand
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix
+      POSTGRES_DB: zabbix
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zabbix"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  zabbix-server:
+    image: zabbix/zabbix-server-pgsql:alpine-7.0-latest
+    environment:
+      DB_SERVER_HOST: db
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix
+      POSTGRES_DB: zabbix
+    ports:
+      - "10051:10051"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-pgsql:alpine-7.0-latest
+    environment:
+      DB_SERVER_HOST: db
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix
+      POSTGRES_DB: zabbix
+      ZBX_SERVER_HOST: zabbix-server
+      PHP_TZ: UTC
+    ports:
+      - "8080:8080"
+    depends_on:
+      - zabbix-server
+
+  # --- Zabbix 6.0 LTS stack (to exercise the v6 API client: auth-in-body) ---
+  # Web UI on http://localhost:8081, trapper on :10061. Point ztc at it with
+  # `-e ZABBIX_URL=http://zabbix-web6:8080 -e ZABBIX_SERVER_FQDN=zabbix-server6`.
+  db6:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix
+      POSTGRES_DB: zabbix
+    volumes:
+      - db6-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zabbix"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  zabbix-server6:
+    image: zabbix/zabbix-server-pgsql:alpine-6.0-latest
+    environment:
+      DB_SERVER_HOST: db6
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix
+      POSTGRES_DB: zabbix
+    ports:
+      - "10061:10051"
+    depends_on:
+      db6:
+        condition: service_healthy
+
+  zabbix-web6:
+    image: zabbix/zabbix-web-nginx-pgsql:alpine-6.0-latest
+    environment:
+      DB_SERVER_HOST: db6
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix
+      POSTGRES_DB: zabbix
+      ZBX_SERVER_HOST: zabbix-server6
+      PHP_TZ: UTC
+    ports:
+      - "8081:8080"
+    depends_on:
+      - zabbix-server6
+
+  # --- Zabbix 8.0 stack (shares the Bearer/v7 API client; API-compatible) ---
+  # Web UI on http://localhost:8082, trapper on :10071. Point ztc at it with
+  # `-e ZABBIX_URL=http://zabbix-web8:8080 -e ZABBIX_SERVER_FQDN=zabbix-server8`.
+  # NOTE: 8.0 is not released yet; its pre-release lives on the `alpine-trunk`
+  # tag. Switch to `alpine-8.0-latest` once 8.0 ships.
+  db8:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix
+      POSTGRES_DB: zabbix
+    volumes:
+      - db8-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zabbix"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  zabbix-server8:
+    image: zabbix/zabbix-server-pgsql:alpine-trunk
+    environment:
+      DB_SERVER_HOST: db8
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix
+      POSTGRES_DB: zabbix
+    ports:
+      - "10071:10051"
+    depends_on:
+      db8:
+        condition: service_healthy
+
+  zabbix-web8:
+    image: zabbix/zabbix-web-nginx-pgsql:alpine-trunk
+    environment:
+      DB_SERVER_HOST: db8
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix
+      POSTGRES_DB: zabbix
+      ZBX_SERVER_HOST: zabbix-server8
+      PHP_TZ: UTC
+    ports:
+      - "8082:8080"
+    depends_on:
+      - zabbix-server8
+
+  # Agent2 monitors itself and exposes the vulners.* inventory keys. Built from
+  # Dockerfile.agent so it behaves like a real host: the agent runs as the zabbix
+  # user, and a root cron drains the vulners.fix spool (deploy/agent/linux files
+  # baked in). Its Zabbix host name is "Zabbix server".
+  zabbix-agent2:
+    # Builds natively on amd64 and arm64 — Dockerfile.agent picks the Zabbix repo
+    # by TARGETARCH (arm64 lives in a separate ubuntu-arm64 repo).
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.agent
+    # Config (Server/ServerActive/Hostname + passive allowlist) is baked into the
+    # image at deploy/docker/zabbix_agent2.stand.conf. The entrypoint starts cron
+    # and then runs this command as the zabbix user.
+    command: ["zabbix_agent2", "--foreground", "-c", "/etc/zabbix/zabbix_agent2.conf"]
+    depends_on:
+      - zabbix-server
+
+  ztc:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    environment:
+      VULNERS_API_KEY: ${VULNERS_API_KEY:?set VULNERS_API_KEY in .env}
+      VULNERS_BASE_URL: ${VULNERS_BASE_URL:-}
+      ZABBIX_URL: http://zabbix-web:8080
+      ZABBIX_USER: Admin
+      ZABBIX_PASSWORD: zabbix
+      ZABBIX_SERVER_FQDN: zabbix-server
+      ZABBIX_SERVER_PORT: "10051"
+      ZTC_SCHEDULE: ${ZTC_SCHEDULE:-1h}
+      # Raise in .env to shrink the provisioned object count (e.g. 7 = High and
+      # above) when the stand's default CacheSize starts complaining.
+      ZTC_MIN_CVSS: ${ZTC_MIN_CVSS:-1}
+    depends_on:
+      - zabbix-server
+      - zabbix-web
+      - zabbix-agent2
+    # Lets VULNERS_BASE_URL=http://host.docker.internal:PORT reach a Vulners API
+    # running on the host machine.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Runs continuously: a scan at startup, then every ZTC_SCHEDULE. One-off
+    # commands still work via `docker compose run --rm ztc <cmd>` (that overrides
+    # this command). After `provision`+linking a template, `docker compose
+    # restart ztc` to pick up hosts immediately.
+    restart: unless-stopped
+    command: ["scan", "--daemon"]
+
+volumes:
+  db-data:
+  db6-data:
+  db8-data:

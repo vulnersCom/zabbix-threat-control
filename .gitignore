@@ -1,0 +1,21 @@
+# build artifacts
+/bin/
+*.exe
+/ztc
+# legacy python
+__pycache__/
+*.pyc
+venv/
+# editor / os
+.idea/
+.DS_Store
+
+# local prod secrets (keep the *.example files)
+deploy/docker/ztc.env
+deploy/docker/.env
+deploy/docker/.env_*
+
+# internal working notes (not for the public repo)
+STATUS.md
+docs/PRODUCTION-ROADMAP.md
+docs/img/SCREENSHOTS.md

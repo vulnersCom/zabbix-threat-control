@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main, go-rewrite]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: build & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: gofmt
+        run: |
+          files=$(gofmt -l $(git ls-files '*.go'))
+          if [ -n "$files" ]; then
+            echo "These files need gofmt:"; echo "$files"; exit 1
+          fi
+      - run: go vet ./...
+      - run: go build ./...
+      - run: go test ./...
+
+  lint:
+    name: golangci-lint
+    runs-on: ubuntu-latest
+    # Non-blocking for now: linting an existing codebase surfaces advisories to
+    # triage rather than gate merges. Flip continue-on-error off once tuned.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: golangci/golangci-lint-action@v8
+
+  docker-build:
+    name: docker build (no push)
+    runs-on: ubuntu-latest
+    # Validate the Dockerfile still builds on every push/PR, so a break surfaces
+    # here rather than mid-release. Single-arch, build-only; release.yml is what
+    # builds multi-arch and pushes to GHCR on a v* tag.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: ztc image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          build-args: VERSION=ci
+      # Also build the agent image: its Dockerfile COPYs files from deploy/, which
+      # .dockerignore excludes — this catches a broken build context (see F2/F1).
+      - name: agent image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile.agent
+          push: false

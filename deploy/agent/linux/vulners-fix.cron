@@ -1,0 +1,5 @@
+# ztc remediation worker — drains the vulners.fix spool once a minute.
+# Install: cp vulners-fix.cron /etc/cron.d/vulners-fix   (root-owned, mode 644)
+#
+# Runs as root, so no sudoers rules are needed. Adjust the interval to taste.
+* * * * * root /usr/local/bin/vulners-fix-worker.sh
