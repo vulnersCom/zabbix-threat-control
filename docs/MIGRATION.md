@@ -19,7 +19,7 @@ re-instrument the scanned hosts with the stock agent keys.
 | **Scanner** | `scan.py` on a cron / agent item, config `ztc.conf` (INI) in `/opt/monitoring/…` | one binary `ztc scan --daemon` (systemd or Docker), config via env / YAML |
 | **Remediation** | `fix.py` via a Zabbix **Action** + `system.run`/ssh + broad `zabbix` sudoers | whitelisted `vulners.fix[<pkg>]` key + host-side worker (root cron, **no sudoers, no Action**) |
 | **Zabbix objects** | group, 1 template, report hosts, an **Action**, dashboard | same group / report hosts / dashboard, **2 templates, CVSS-scored triggers, `vulners.host` tags, no Action** |
-| **Zabbix version** | 3.4+ | 6.0 / 7.0 / 8.0 (auto-detected) |
+| **Zabbix version** | 3.4+ | 6.0 / 7.0 / 7.4 / 8.0 (auto-detected) |
 
 **Key consequence:** the report hosts and dashboard keep the **same names**. ztc
 reconciles objects it recognises as its own, but the Python layout differs enough
@@ -33,7 +33,7 @@ adopt them.
 
 ## Before you start
 
-- Your Zabbix must be **6.0, 7.0 or 8.0** (ztc's minimum). Upgrade Zabbix first
+- Your Zabbix must be **6.0, 7.0, 7.4 or 8.0** (ztc's minimum). Upgrade Zabbix first
   if you are still on an older release.
 - Pick the host that will run `ztc` — the Zabbix server itself is fine.
 - Have the old `ztc.conf` handy; you will copy secrets out of it (Step 2).

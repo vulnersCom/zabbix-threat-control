@@ -658,7 +658,7 @@ func (p *Provisioner) statItemIDs(ctx context.Context, hostID string) map[string
 
 // ensureGraph returns the id of a graph by name, creating it if absent. gitems
 // reference statistics-host items. Classic graphs are used (not svggraph) as
-// they render identically on Zabbix 6.0, 7.0 and 8.0, including the pie graphtype.
+// they render identically on Zabbix 6.0, 7.0, 7.4 and 8.0, including the pie graphtype.
 func (p *Provisioner) ensureGraph(ctx context.Context, name string, graphType int, gitems []map[string]interface{}) string {
 	if id, _ := p.getID(ctx, "graph.get", map[string]interface{}{
 		"filter": map[string]interface{}{"name": name}, "output": []string{"graphid"},

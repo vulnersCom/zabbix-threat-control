@@ -21,7 +21,7 @@ back into Zabbix. One static binary, installed in one command.
 - **Linux _and_ Windows.** Linux packages via Vulners `audit/linux`; Windows
   registry software via **Smart Audit** and installed KBs via `audit/kb` (with
   per-CVE CVSS). Smart Audit is independent of the Zabbix version.
-- **Zabbix 6.0, 7.0 and 8.0.** Auto-detects the API version; no per-version
+- **Zabbix 6.0, 7.0, 7.4 and 8.0.** Auto-detects the API version; no per-version
   branches to maintain on your side.
 - **Actionable, not just a list.** Findings become Zabbix **problems scored by
   CVSS severity**, filterable **by host**, with **median-CVSS and
@@ -128,7 +128,7 @@ acknowledging the problem in Zabbix. Rationale:
 
 | | |
 |---|---|
-| **Zabbix** | 6.0 & 7.0 LTS, 8.0 (auto-detected) |
+| **Zabbix** | 6.0 & 7.0 LTS, 7.4, 8.0 (auto-detected) |
 | **OS audited** | Linux (deb/rpm/apk/…), Windows (software + KB) |
 | **ztc runs on** | Linux amd64 / arm64 |
 

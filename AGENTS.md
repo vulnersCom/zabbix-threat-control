@@ -19,7 +19,7 @@ agent2 UserParameters ─► Zabbix items ─► ztc scan ─► Vulners audit �
 
 ## Prerequisites
 
-- **Zabbix 6.0 / 7.0 LTS or 8.0** — the API version is auto-detected; no per-version setup.
+- **Zabbix 6.0 / 7.0 LTS, 7.4 or 8.0** — the API version is auto-detected; no per-version setup.
 - **A Vulners API key** — from <https://vulners.com> (account → API keys).
 - **zabbix-agent2 on every host you want scanned**, with the ztc UserParameter snippet:
   - Linux — [`deploy/agent/linux/vulners.conf`](deploy/agent/linux/vulners.conf):
