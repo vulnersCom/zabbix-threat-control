@@ -145,13 +145,24 @@ UserParameter=vulners.fix[*],Q=${VULNERS_FIX_QUEUE:-/var/lib/zabbix/vulners-fix.
 
 ## 4. What goes where (file map)
 
-**On every monitored host** (nothing else; no Vulners code):
+**On every monitored Linux host** (nothing else; no Vulners code):
 
 | File | Destination | Purpose |
 |---|---|---|
 | `deploy/agent/linux/vulners.conf` | `/etc/zabbix/zabbix_agent2.d/` | collection keys + `vulners.fix` |
 | `deploy/agent/linux/vulners-fix-worker.sh` | `/usr/local/bin/` | upgrade worker (only if fix is used) |
 | `deploy/agent/linux/vulners-fix.cron` | `/etc/cron.d/` | runs the worker every minute (root) |
+
+**On every monitored Windows host:**
+
+| File | Destination | Purpose |
+|---|---|---|
+| `deploy/agent/windows/install-agent.ps1` | run once, elevated | puts the file below in place, fixes `Include=`, restarts the agent, self-tests |
+| `deploy/agent/windows/vulners.conf` | the agent's include directory | collection keys + `Timeout` |
+
+Detection works on Windows; automatic remediation does not. There is no
+`vulners.fix` equivalent — see
+[ADR 0001](adr/0001-remediation-mechanism.md) and section 5.3.
 
 **Centrally (once, anywhere with access to Zabbix and Vulners):**
 
@@ -206,7 +217,7 @@ export ZABBIX_SERVER_FQDN=zabbix.example.com
 ztc scan --once
 ```
 
-### 5.2 Agent snippet (`/etc/zabbix/zabbix_agent2.d/vulners.conf`)
+### 5.2 Linux agent snippet (`/etc/zabbix/zabbix_agent2.d/vulners.conf`)
 
 Full contents are in section 3. Install on a host:
 
@@ -224,7 +235,59 @@ Server=10.0.0.5            # Zabbix server IP (and ztc, if fix is sent from ztc)
 # a list/subnet also works: Server=10.0.0.5,10.0.0.6
 ```
 
-### 5.3 Remediation: worker + cron (only where fix is used)
+### 5.3 Windows agent (`install-agent.ps1` + `vulners.conf`)
+
+Windows hosts report four keys. Software comes from the registry Uninstall keys
+in both the 64- and 32-bit views; installed updates come from `Get-HotFix`:
+
+| Key | Returns | Feeds |
+|---|---|---|
+| `vulners.os` | `Win32_OperatingSystem.Caption`, e.g. `Microsoft Windows 11 Pro` | OS family |
+| `vulners.version` | the build version, e.g. `10.0.26100` | OS family |
+| `vulners.win.software` | one `Name Version` line per installed product | `v4/audit/smart` |
+| `vulners.win.kb` | one KB identifier per line | `v3/audit/kb` |
+
+Install from the unpacked release archive, in an **elevated** PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install-agent.ps1
+```
+
+The script finds the `Zabbix Agent 2` service and the config it was started
+with, copies `vulners.conf` into the agent's include directory, adds an
+`Include=` line to the main config only when none covers that directory (keeping
+a `.bak`), restarts the service, and then queries all four keys over
+`127.0.0.1:10050` — the running service, not a separate process, because only
+that proves the agent actually loaded the file. If the agent fails to come back
+up it puts everything back and says so. Run it again and it does nothing:
+that is what makes it safe as a GPO startup script.
+
+Useful switches: `-Check` (diagnose, change nothing; exit code 0 only when the
+host is fully configured, so it doubles as a health probe), `-Uninstall`,
+`-ConfSource <path|url>`, `-IncludeDir`, `-ServiceName`, `-Timeout <seconds>`,
+`-LogPath <file>`, `-WhatIf`.
+
+Three things worth knowing before you run it:
+
+- **It is not quick.** Stopping agent2 on a live host takes 15–30 seconds, so a
+  run that changes anything takes roughly a minute. That is the agent, not the
+  script.
+- **`Timeout=30` ships in `vulners.conf`** and applies to the whole agent, not
+  just these keys. `Get-HotFix` reads WMI and does not fit in the 3 s default;
+  without this the server reports "Timeout occurred while gathering data" for
+  `vulners.win.kb`. If your main config sets a lower `Timeout`, the script warns
+  rather than editing a file that GPO or Ansible probably owns.
+- **Two copies of the keys stop the agent dead.** agent2 refuses to start on a
+  duplicate `UserParameter`, and its log names the key but not the file. If an
+  older manual install left a copy anywhere the config includes — `plugins.d` is
+  the classic hiding place — the script finds it and prints the path before
+  touching anything.
+
+Verify from the server side: link `Template Vulners OS-Report Windows` to the
+host and watch the four items in *Latest data*. They poll **daily**, so use
+*Execute now* if you do not want to wait.
+
+### 5.4 Remediation: worker + cron (only where fix is used)
 
 `/etc/cron.d/vulners-fix`:
 
@@ -245,7 +308,7 @@ cat /var/lib/zabbix/vulners-fix.queue     # what is queued
 tail -f /var/log/vulners-fix.log          # START <pkg> / output / END rc=<code>
 ```
 
-### 5.4 What `ztc provision` does
+### 5.5 What `ztc provision` does
 
 One command creates everything in Zabbix (no manual setup):
 
@@ -313,8 +376,9 @@ host and processes the rest.
 version (`dpkg -l <pkg>` / `rpm -q <pkg>`) before/after; on the next scan the finding
 disappears.
 
-**Windows?** Detection works (registry software → smart-audit, KBs → winaudit).
-Automatic Windows remediation is not implemented yet.
+**Windows?** Detection works (registry software → smart-audit, KBs → winaudit);
+set a host up with the installer in section 5.3. Automatic remediation does not
+— the `vulners.fix` flow in section 6 is Linux-only.
 
 **Does it scale to many hosts?** Yes: ztc is a single node reading data in batches via
 the API; collection is distributed across agents. The main cost is Vulners API calls
