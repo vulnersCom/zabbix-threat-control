@@ -96,6 +96,77 @@ method 1 or 2 instead (download the binary/image once, then install offline).
 
 ---
 
+## Monitored Windows hosts
+
+`ztc` itself runs on Linux; the hosts it scans can be either. A Windows host
+needs zabbix-agent2 (from the official MSI) plus the Vulners UserParameters.
+Both files ship in the release archive under `deploy/agent/windows/`. From that
+directory, in an **elevated** PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File install-agent.ps1
+```
+
+It installs `vulners.conf` into the agent's include directory, adds an
+`Include=` line only if none covers it, restarts the agent and self-tests the
+four keys. `-Check` diagnoses without changing anything and exits 0 only when
+the host is fully configured; `-Uninstall` removes the drop-in. Switches and
+caveats: [`docs/guide.md` §5.3](../docs/guide.md).
+
+Expect a run that changes something to take about a minute — stopping agent2
+takes 15–30 seconds on a live host.
+
+### Rolling it out with GPO
+
+Put `install-agent.ps1` and `vulners.conf` on a share every computer account can
+read (SYSVOL, or a file server with `Domain Computers: Read`). Add a **computer**
+startup script — Computer Configuration → Policies → Windows Settings → Scripts →
+Startup → PowerShell Scripts — pointing at the script on the share, with
+parameters:
+
+```
+-ConfSource \\dc01\netlogon\ztc\vulners.conf -LogPath C:\Windows\Temp\vulners-install.log
+```
+
+Startup scripts run as SYSTEM, which is already elevated. On a healthy host the
+script costs one key query and exits without touching the service, so leaving
+the policy in place also repairs hosts where someone removed the drop-in. A host
+that cannot answer that query is not healthy, and there the script reinstalls
+and restarts the agent on every boot until someone looks at it — check
+`-LogPath` before assuming a reboot loop is the script misbehaving. The tradeoff
+of a startup script is that hosts pick it up on reboot; use a scheduled task via
+Group Policy Preferences if that is too slow.
+
+`-Check` exits 0 only on a fully configured host, so it works as a rollout
+health probe.
+
+### Rolling it out with SCCM / Intune
+
+Package both files together.
+
+| Setting | Value |
+|---|---|
+| Install command | `powershell.exe -ExecutionPolicy Bypass -File install-agent.ps1` |
+| Uninstall command | `powershell.exe -ExecutionPolicy Bypass -File install-agent.ps1 -Uninstall` |
+| Detection rule | file `vulners.conf` exists in the agent's include directory (stock MSI: `C:\Program Files\Zabbix Agent 2\zabbix_agent2.d\vulners.conf`) |
+| Context | System — the script refuses to run unelevated |
+
+Exit code 0 means success or "already current". 1 means it did not finish —
+check the log. It does **not** mean nothing changed. The installer rolls back
+when the agent fails to come back up, when a write or config edit fails, and
+when the self-test fails with the agent down; but a self-test failure with the
+agent still **running** deliberately leaves the drop-in and any `Include=` edit
+in place, so the host stays debuggable. An incomplete rollback also reports
+itself and leaves partial state. Add `-LogPath` to keep that log.
+
+One failure mode is worth knowing before a fleet-wide push: agent2 refuses to
+start if two files declare the same `UserParameter`, and its own log names the
+key but not the file. If an earlier manual install left a copy of `vulners.conf`
+anywhere the agent's config includes — `plugins.d` is the usual place — the
+installer detects it and prints the path instead of installing on top of it.
+
+---
+
 ## Upgrading
 
 Whichever method you used, an upgrade is **two** steps — the binary and the Zabbix
