@@ -10,7 +10,7 @@ const (
 	// PlatformLinux hosts are audited via vulners v4/audit/linux.
 	PlatformLinux Platform = "linux"
 	// PlatformWindows hosts are audited via v4/audit/smart (registry software)
-	// and v3/audit/winaudit (installed KBs).
+	// and v4/audit/kb (installed KBs).
 	PlatformWindows Platform = "windows"
 )
 
@@ -35,17 +35,19 @@ type Host struct {
 
 // Bulletin is a security bulletin/advisory affecting a host.
 type Bulletin struct {
-	Name  string
-	Score float64
+	Name         string
+	Score        float64
+	Exploitation Exploitation
 }
 
 // Package is a vulnerable package with the highest-scoring bulletin and the
 // remediation command for it.
 type Package struct {
-	Name       string
-	Score      float64
-	BulletinID string
-	Fix        string
+	Name         string
+	Score        float64
+	BulletinID   string
+	Fix          string
+	Exploitation Exploitation
 }
 
 // HostResult is the audit outcome for a single host.
@@ -55,4 +57,10 @@ type HostResult struct {
 	CumulativeFix string
 	Packages      []Package
 	Bulletins     []Bulletin
+	// Exploitation is the worst SSVC decision seen on this host, and
+	// ActivelyExploited counts the findings carrying the worst one. Together
+	// they let an operator ask "is anything here actually being exploited"
+	// without reading the whole list.
+	Exploitation      Exploitation
+	ActivelyExploited int
 }

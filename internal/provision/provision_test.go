@@ -287,6 +287,8 @@ func (s installState) responder() func(ctx context.Context, method string, param
 			var out []string
 			for _, key := range []string{
 				"vulners.hosts[{#H.ID}]",
+				// Second prototype on the hosts rule: the actively-exploited count.
+				"vulners.hostsExploited[{#H.ID}]",
 				"vulners.bulletins[{#BULLETIN.ID},{#BULLETIN.HOSTID}]",
 				"vulners.packages[{#PKG.ID},{#PKG.HOSTID}]",
 			} {

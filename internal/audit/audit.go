@@ -1,6 +1,6 @@
 // Package audit orchestrates the Vulners audit for a host and transforms the
 // SDK responses into the source-neutral model. It routes Linux hosts to
-// v4/audit/linux and Windows hosts to v4/audit/smart + v3/audit/winaudit.
+// v4/audit/linux and Windows hosts to v4/audit/smart + v4/audit/kb.
 package audit
 
 import (
@@ -25,7 +25,7 @@ func Audit(ctx context.Context, a vulners.Auditor, h model.Host) (model.HostResu
 
 	case model.PlatformWindows:
 		var software []gv.SmartAuditItem
-		var kb *gv.AuditResult
+		var kb *gv.KBAuditV4Result
 		if len(h.Software) > 0 {
 			items, err := a.WindowsSoftwareAudit(ctx, h.Software)
 			if err != nil {
@@ -34,11 +34,10 @@ func Audit(ctx context.Context, a vulners.Auditor, h model.Host) (model.HostResu
 			software = items
 		}
 		if len(h.KBList) > 0 {
-			// The KB endpoint matches os against bulletin affectedProducts; the raw
-			// Caption (e.g. "Microsoft Windows 11 Pro") matches nothing (errorCode
-			// 110). Send the OS family and let the installed-KB set scope the audit,
-			// as the vulners-agent reference does (os=os_data["osType"]).
-			res, err := a.WindowsKBAudit(ctx, "Windows", h.KBList)
+			// osName labels the finding; what the host is missing is decided by the
+			// installed-KB set alone. The agent reports Win32_OperatingSystem.Caption,
+			// so that is what the finding gets named after.
+			res, err := a.WindowsKBAudit(ctx, h.OSName, h.OSVersion, h.KBList)
 			if err != nil {
 				return model.HostResult{}, fmt.Errorf("windows kb audit %q: %w", h.Name, err)
 			}
