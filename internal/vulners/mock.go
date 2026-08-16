@@ -10,7 +10,7 @@ import (
 type Mock struct {
 	LinuxFunc    func(ctx context.Context, osName, osVersion, osArch string, packages []string) (*gv.PackageAuditResult, error)
 	SoftwareFunc func(ctx context.Context, software []string) ([]gv.SmartAuditItem, error)
-	KBFunc       func(ctx context.Context, os string, kbList []string) (*gv.AuditResult, error)
+	KBFunc       func(ctx context.Context, osName, osVersion string, kbList []string) (*gv.KBAuditV4Result, error)
 }
 
 var _ Auditor = (*Mock)(nil)
@@ -29,9 +29,13 @@ func (m *Mock) WindowsSoftwareAudit(ctx context.Context, software []string) ([]g
 	return nil, nil
 }
 
-func (m *Mock) WindowsKBAudit(ctx context.Context, os string, kbList []string) (*gv.AuditResult, error) {
+func (m *Mock) WindowsKBAudit(
+	ctx context.Context,
+	osName, osVersion string,
+	kbList []string,
+) (*gv.KBAuditV4Result, error) {
 	if m.KBFunc != nil {
-		return m.KBFunc(ctx, os, kbList)
+		return m.KBFunc(ctx, osName, osVersion, kbList)
 	}
-	return &gv.AuditResult{}, nil
+	return &gv.KBAuditV4Result{}, nil
 }

@@ -280,6 +280,16 @@ type vhostSpec struct {
 	triggerURL      string
 	triggerComment  string
 	triggerTags     []map[string]string // carry host/package identity into events (for fix)
+	// extraItems are further trapper item prototypes on the same discovery rule.
+	// They carry no trigger of their own - the rule holds exactly one - so an
+	// operator builds their own trigger on them.
+	extraItems []itemProto
+}
+
+// itemProto is one trapper item prototype under a discovery rule.
+type itemProto struct {
+	name string
+	key  string
 }
 
 func (p *Provisioner) createVirtualHosts(ctx context.Context) error {
@@ -302,7 +312,14 @@ func (p *Provisioner) createVirtualHosts(ctx context.Context) error {
 			triggerTags: []map[string]string{
 				{"tag": "vulners.target", "value": "{#H.VNAME}"},
 				{"tag": "vulners.host", "value": "{#H.VNAME}"},
+				// Carries the SSVC decision onto the problem, so an action can
+				// route "actively exploited" differently without a second trigger.
+				{"tag": "vulners.exploitation", "value": "{#H.EXPLOITATION}"},
 			},
+			extraItems: []itemProto{{
+				name: "Actively exploited findings on {#H.HOST} [{#H.VNAME}]",
+				key:  "vulners.hostsExploited[{#H.ID}]",
+			}},
 		},
 		{
 			host: e.BulletinsHost, name: e.BulletinsName, lldKey: "vulners.bulletins_lld",
@@ -357,6 +374,11 @@ func (p *Provisioner) createVirtualHost(ctx context.Context, groupID string, s v
 	lldID, err := p.ensureDiscoveryRule(ctx, hostID, s)
 	if err != nil {
 		return fmt.Errorf("discovery rule: %w", err)
+	}
+	for _, extra := range s.extraItems {
+		if err := p.ensureItemPrototypeKey(ctx, hostID, lldID, extra); err != nil {
+			return err
+		}
 	}
 	if err := p.ensureItemPrototype(ctx, hostID, lldID, s); err != nil {
 		return fmt.Errorf("item prototype: %w", err)
@@ -446,6 +468,10 @@ func (p *Provisioner) ensureDiscoveryRule(ctx context.Context, hostID string, s 
 }
 
 func (p *Provisioner) ensureItemPrototype(ctx context.Context, hostID, lldID string, s vhostSpec) error {
+	return p.ensureItemPrototypeKey(ctx, hostID, lldID, itemProto{name: s.itemProtoName, key: s.itemProtoKey})
+}
+
+func (p *Provisioner) ensureItemPrototypeKey(ctx context.Context, hostID, lldID string, proto itemProto) error {
 	have, err := p.fetchByKey(ctx, "itemprototype.get", map[string]interface{}{
 		"discoveryids": lldID,
 		"output":       "extend",
@@ -457,13 +483,13 @@ func (p *Provisioner) ensureItemPrototype(ctx context.Context, hostID, lldID str
 		"value_type":    0, // float
 		"trapper_hosts": p.trapperHosts(),
 	}
-	cur, ok := have[s.itemProtoKey]
+	cur, ok := have[proto.key]
 	if !ok {
 		params := map[string]interface{}{
 			"hostid": hostID,
 			"ruleid": lldID,
-			"name":   s.itemProtoName,
-			"key_":   s.itemProtoKey,
+			"name":   proto.name,
+			"key_":   proto.key,
 			"type":   2, // trapper
 		}
 		for k, v := range owned {
@@ -477,7 +503,7 @@ func (p *Provisioner) ensureItemPrototype(ctx context.Context, hostID, lldID str
 		if _, err := p.c.Call(ctx, "itemprototype.update", d); err != nil {
 			return err
 		}
-		p.log.Info("updated item prototype", "key", s.itemProtoKey, "fields", changedFields(d))
+		p.log.Info("updated item prototype", "key", proto.key, "fields", changedFields(d))
 	}
 	return nil
 }

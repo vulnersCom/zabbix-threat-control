@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 
 	"github.com/vulnersCom/zabbix-threat-control/internal/model"
 )
@@ -56,13 +57,24 @@ func buildHosts(out *Result, results []model.HostResult, ent Entities) {
 			Key:   fmt.Sprintf("vulners.hosts[%s]", r.Host.HostID),
 			Value: formatScore(r.Score),
 		})
+		// How many findings on this host are being exploited in the wild,
+		// according to the CISA decision on their CVEs. A separate item rather
+		// than a macro, so a trigger can fire on "anything actively exploited"
+		// without depending on discovery having run.
+		out.Data = append(out.Data, Item{
+			Host:  ent.HostsHost,
+			Key:   fmt.Sprintf("vulners.hostsExploited[%s]", r.Host.HostID),
+			Value: strconv.Itoa(r.ActivelyExploited),
+		})
 		discovery = append(discovery, map[string]interface{}{
-			"{#H.VNAME}":    r.Host.Name,
-			"{#H.HOST}":     r.Host.Host,
-			"{#H.ID}":       r.Host.HostID,
-			"{#H.FIX}":      r.CumulativeFix,
-			"{#H.SCORE}":    r.Score,
-			"{#H.SEVERITY}": model.SeverityFor(r.Score).Label,
+			"{#H.VNAME}":        r.Host.Name,
+			"{#H.HOST}":         r.Host.Host,
+			"{#H.ID}":           r.Host.HostID,
+			"{#H.FIX}":          r.CumulativeFix,
+			"{#H.SCORE}":        r.Score,
+			"{#H.SEVERITY}":     model.SeverityFor(r.Score).Label,
+			"{#H.EXPLOITED}":    r.ActivelyExploited,
+			"{#H.EXPLOITATION}": string(r.Exploitation),
 		})
 	}
 	out.LLD = append(out.LLD, Item{

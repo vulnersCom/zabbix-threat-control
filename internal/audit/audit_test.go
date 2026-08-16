@@ -85,53 +85,78 @@ func TestTransformLinux(t *testing.T) {
 func TestTransformWindows(t *testing.T) {
 	software := []gv.SmartAuditItem{
 		{
-			Input: "Google Chrome 100.0",
-			Vulnerabilities: []gv.SmartAuditVulnerability{
-				{ID: "CVE-2022-1", AIScore: &gv.AIScore{Value: 8.1}},
-			},
+			Input:        "Google Chrome 100.0",
+			FixedVersion: "101.0.4951.41",
+			Vulnerabilities: []gv.SmartAuditVulnerability{{
+				ID:      "GCSA-1",
+				AIScore: &gv.AIScore{Value: 6.9},
+				// The rollup is what the finding is scored from; ai_score would
+				// have capped this below the high band.
+				Metrics: &gv.AdvisoryMetrics{CVSS: &gv.CVSS{Score: 9.6}},
+			}},
 		},
 		{Input: "Unknown blob", Vulnerabilities: nil},
 	}
-	kb := &gv.AuditResult{
-		Vulnerabilities: []gv.Vulnerability{
-			{BulletinID: "KB5031", Package: "Windows 10", CVSS: &gv.CVSS{Score: 6.5}, Fix: "Install KB5031"},
-		},
-	}
-	h := model.Host{Name: "win1", OSName: "Windows 10", Platform: model.PlatformWindows}
+	kb := &gv.KBAuditV4Result{Items: []gv.KBAuditIssue{{
+		Package:      "Windows Server 2022",
+		FixedPackage: "KB5120242",
+		Advisories: []gv.KBAuditAdvisory{{
+			ID:      "KB5120242",
+			Metrics: &gv.AdvisoryMetrics{CVSS: &gv.CVSS{Score: 6.5}},
+		}},
+	}}}
+	h := model.Host{Name: "win1", OSName: "Windows Server 2022", Platform: model.PlatformWindows}
 	got := transformWindows(h, software, kb)
 
-	if got.Score != 8.1 {
-		t.Errorf("score = %v, want 8.1", got.Score)
+	if got.Score != 9.6 {
+		t.Errorf("score = %v, want 9.6 (rollup, not ai_score)", got.Score)
 	}
 	if len(got.Bulletins) != 2 {
-		t.Errorf("bulletins = %d, want 2 (CVE + KB)", len(got.Bulletins))
+		t.Errorf("bulletins = %d, want 2 (advisory + KB)", len(got.Bulletins))
 	}
 	if len(got.Packages) != 2 {
 		t.Errorf("packages = %d, want 2", len(got.Packages))
 	}
+	// Windows findings used to carry no remediation at all.
+	var chrome, windows model.Package
+	for _, p := range got.Packages {
+		switch p.Name {
+		case "Google Chrome 100.0":
+			chrome = p
+		case "Windows Server 2022":
+			windows = p
+		}
+	}
+	if chrome.Fix != "upgrade Google Chrome 100.0 to 101.0.4951.41" {
+		t.Errorf("software fix = %q", chrome.Fix)
+	}
+	if windows.Fix != "install KB5120242" {
+		t.Errorf("kb fix = %q", windows.Fix)
+	}
 }
 
-func TestAuditWindowsKBUsesFamilyOSName(t *testing.T) {
-	var gotOS string
+func TestAuditWindowsKBSendsTheHostOSName(t *testing.T) {
+	var gotOS, gotVersion string
 	mock := &vulners.Mock{
-		KBFunc: func(ctx context.Context, os string, kbList []string) (*gv.AuditResult, error) {
-			gotOS = os
-			return &gv.AuditResult{}, nil
+		KBFunc: func(_ context.Context, osName, osVersion string, _ []string) (*gv.KBAuditV4Result, error) {
+			gotOS, gotVersion = osName, osVersion
+			return &gv.KBAuditV4Result{}, nil
 		},
 	}
-	// OSName is the raw Win32_OperatingSystem.Caption the agent reports.
+	// OSName is the raw Win32_OperatingSystem.Caption the agent reports. The v4
+	// endpoint labels the finding with it rather than matching on it, so the
+	// Caption goes through as-is instead of being flattened to a family name.
 	h := model.Host{
-		Platform: model.PlatformWindows,
-		OSName:   "Microsoft Windows 11 Pro",
-		KBList:   []string{"KB5066131"},
+		Platform:  model.PlatformWindows,
+		OSName:    "Microsoft Windows 11 Pro",
+		OSVersion: "10.0.22631",
+		KBList:    []string{"KB5066131"},
 	}
 	if _, err := Audit(context.Background(), mock, h); err != nil {
 		t.Fatalf("audit: %v", err)
 	}
-	// The KB endpoint matches os against bulletin affectedProducts and rejects the
-	// raw Caption (errorCode 110); the OS family "Windows" must be sent instead.
-	if gotOS != "Windows" {
-		t.Errorf("KB audit os = %q, want %q", gotOS, "Windows")
+	if gotOS != "Microsoft Windows 11 Pro" || gotVersion != "10.0.22631" {
+		t.Errorf("KB audit os = %q / %q", gotOS, gotVersion)
 	}
 }
 
@@ -146,9 +171,9 @@ func TestAuditRoutesByPlatform(t *testing.T) {
 			smartCalled = true
 			return nil, nil
 		},
-		KBFunc: func(ctx context.Context, os string, kbList []string) (*gv.AuditResult, error) {
+		KBFunc: func(_ context.Context, _, _ string, _ []string) (*gv.KBAuditV4Result, error) {
 			kbCalled = true
-			return &gv.AuditResult{}, nil
+			return &gv.KBAuditV4Result{}, nil
 		},
 	}
 

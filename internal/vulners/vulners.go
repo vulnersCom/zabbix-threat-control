@@ -23,10 +23,15 @@ type Auditor interface {
 	// WindowsSoftwareAudit resolves raw registry software strings to
 	// vulnerabilities via v4/audit/smart.
 	WindowsSoftwareAudit(ctx context.Context, software []string) ([]gv.SmartAuditItem, error)
-	// WindowsKBAudit audits installed KBs via v3/audit/kb. os is the family
-	// ("Windows"); the installed KB set scopes the result.
-	WindowsKBAudit(ctx context.Context, os string, kbList []string) (*gv.AuditResult, error)
+	// WindowsKBAudit audits installed KBs via v4/audit/kb. osName must match a
+	// KB bulletin's affectedProducts value, e.g. "Windows Server 2022".
+	WindowsKBAudit(ctx context.Context, osName, osVersion string, kbList []string) (*gv.KBAuditV4Result, error)
 }
+
+// smartAuditFields is the enrichment Smart Audit must be asked for. `metrics`
+// carries the advisory rollup used for scoring, `exploitation` the KEV flag and
+// `cvelistMetrics` the per-CVE entries that carry SSVC.
+var smartAuditFields = []string{"title", "metrics", "exploitation", "cvelist", "cvelistMetrics"}
 
 // Client is the production Auditor backed by go-vulners.
 type Client struct {
@@ -82,9 +87,12 @@ func (c *Client) LinuxAudit(ctx context.Context, osName, osVersion, osArch strin
 	return c.svc.LinuxAuditV4(ctx, osName, osVersion, packages, opts...)
 }
 
-// WindowsSoftwareAudit implements Auditor.
+// WindowsSoftwareAudit implements Auditor. The enrichment is requested
+// explicitly: without it the endpoint answers with ai_score alone, which tops
+// out below the high band and cannot express KEV, so every Windows application
+// finding would look mild.
 func (c *Client) WindowsSoftwareAudit(ctx context.Context, software []string) ([]gv.SmartAuditItem, error) {
-	res, err := c.svc.SmartAudit(ctx, software)
+	res, err := c.svc.SmartAudit(ctx, software, gv.WithAuditFields(smartAuditFields...))
 	if err != nil {
 		return nil, err
 	}
@@ -94,9 +102,20 @@ func (c *Client) WindowsSoftwareAudit(ctx context.Context, software []string) ([
 	return res.Items, nil
 }
 
-// WindowsKBAudit implements Auditor via v3/audit/kb. The endpoint matches os
-// against bulletin affectedProducts (the OS family "Windows" matches loosely)
-// and returns the CVEs implied by the missing KBs relative to the installed set.
-func (c *Client) WindowsKBAudit(ctx context.Context, os string, kbList []string) (*gv.AuditResult, error) {
-	return c.svc.KBAudit(ctx, os, kbList)
+// WindowsKBAudit implements Auditor via v4/audit/kb.
+//
+// The v3 endpoint returned every missing CVE in one flat list with nothing
+// tying them to the update that fixes them, which turned a stale host into
+// thousands of findings with no remediation. v4 groups them under the updates
+// to install, so the same host yields one finding that names the KB.
+func (c *Client) WindowsKBAudit(
+	ctx context.Context,
+	osName, osVersion string,
+	kbList []string,
+) (*gv.KBAuditV4Result, error) {
+	opts := []gv.AuditOption{gv.WithAuditFields("metrics", "cvelistMetrics")}
+	if osVersion != "" {
+		opts = append(opts, gv.WithOSVersion(osVersion))
+	}
+	return c.svc.KBAuditV4(ctx, osName, kbList, opts...)
 }
