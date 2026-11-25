@@ -111,13 +111,16 @@ UserParameter=vulners.arch,uname -m
 UserParameter=vulners.packages,if command -v dpkg-query >/dev/null 2>&1; then \
   dpkg-query -W -f='${Status} ${Package} ${Version} ${Architecture}\n' \
   | awk '($1=="install"||$1=="hold")&&($2=="ok"){print $4" "$5" "$6}'; \
-  elif command -v rpm >/dev/null 2>&1; then rpm -qa; \
+  elif command -v rpm >/dev/null 2>&1; then \
+  rpm -qa --qf '%{NAME}-%|EPOCH?{%{EPOCH}:}:{}|%{VERSION}-%{RELEASE}%|ARCH?{.%{ARCH}}:{}|\n'; \
   elif command -v apk >/dev/null 2>&1; then apk info -v; fi
 ```
 
 Key points:
 - These are plain keys (no `[*]`) — "run a command." The commands are **read-only**;
   no root needed.
+- rpm needs the explicit `--qf`: plain `rpm -qa` omits the epoch, and packages
+  with epoch > 0 are then reported as vulnerable even when up to date.
 - The server can invoke **only** these predefined keys. It cannot run an arbitrary
   command — that is the security boundary (unlike `system.run[*]`).
 - Example `vulners.packages` value (one line per package):
