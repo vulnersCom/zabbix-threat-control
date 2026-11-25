@@ -33,6 +33,13 @@ func TestFixCommand(t *testing.T) {
 			t.Errorf("fixCommand(%q) = %q, want %q", os, got, want)
 		}
 	}
+	// rpm NEVRA (with or without epoch) must become the bare name, otherwise
+	// yum/dnf is asked to "upgrade" to the installed version - a no-op.
+	for _, raw := range []string{"bash-4.4-1.el8.x86_64", "bash-1:4.4-1.el8.x86_64"} {
+		if got, want := fixCommand("redos", raw), "sudo yum -y update bash"; got != want {
+			t.Errorf("fixCommand(redos, %q) = %q, want %q", raw, got, want)
+		}
+	}
 }
 
 func TestTransformLinux(t *testing.T) {

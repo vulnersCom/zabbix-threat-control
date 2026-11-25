@@ -8,11 +8,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"regexp"
-	"strings"
 
 	"github.com/vulnersCom/zabbix-threat-control/internal/config"
 	"github.com/vulnersCom/zabbix-threat-control/internal/model"
+	"github.com/vulnersCom/zabbix-threat-control/internal/pkgname"
 	"github.com/vulnersCom/zabbix-threat-control/internal/zabbix"
 )
 
@@ -106,26 +105,10 @@ func FindHost(results []model.HostResult, name string) (model.HostResult, bool) 
 	return model.HostResult{}, false
 }
 
-// apkNVR matches the trailing "-<version>-r<release>" of an Alpine apk package
-// listing (e.g. "busybox-1.37.0-r31"), which has no spaces to split on.
-var apkNVR = regexp.MustCompile(`-[^-\s]+-r[0-9]+$`)
-
 // managerName reduces a raw package string to the bare name passed to
-// vulners.fix[...]. deb/rpm audit output is space-separated ("openssl 3.0.2
-// amd64") so the first field is the name; Alpine apk output is hyphen-joined
-// ("busybox-1.37.0-r31") so the version/release tail is stripped instead.
+// vulners.fix[...] (deb, apk and rpm NEVRA forms - see pkgname.Name).
 func managerName(raw string) string {
-	fields := strings.Fields(raw)
-	if len(fields) == 0 {
-		return ""
-	}
-	name := fields[0]
-	if len(fields) == 1 {
-		if loc := apkNVR.FindStringIndex(name); loc != nil {
-			name = name[:loc[0]]
-		}
-	}
-	return name
+	return pkgname.Name(raw)
 }
 
 // agentAddr resolves a host's main agent interface into a "host:port" address.

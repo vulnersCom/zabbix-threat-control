@@ -6,6 +6,7 @@ package agentget
 
 import (
 	"bytes"
+	"compress/zlib"
 	"context"
 	"encoding/binary"
 	"fmt"
@@ -18,6 +19,11 @@ import (
 const (
 	header       = "ZBXD\x01"
 	notSupported = "ZBX_NOTSUPPORTED"
+
+	flagCompressed = 0x02
+	flagLarge      = 0x04
+	// vulners.fix replies are one word; cap what a misbehaving peer can make us allocate
+	maxResponse = 16 << 20
 )
 
 // Client performs passive-agent requests.
@@ -90,14 +96,42 @@ func readResponse(r io.Reader) (string, error) {
 		rest, _ := io.ReadAll(r)
 		return string(head[:n]) + string(rest), nil
 	}
-	lenBuf := make([]byte, 8)
+	// After "ZBXD"+flags: <datalen><reserved>, 4 bytes each (8 with the
+	// large-packet flag). reserved is the uncompressed size: agent2 6.x fills it
+	// even in uncompressed replies, so it must not be read as part of datalen.
+	flags := head[4]
+	width := 4
+	if flags&flagLarge != 0 {
+		width = 8
+	}
+	lenBuf := make([]byte, 2*width)
 	if _, err := io.ReadFull(r, lenBuf); err != nil {
 		return "", fmt.Errorf("read agent length: %w", err)
 	}
-	size := binary.LittleEndian.Uint64(lenBuf)
+	var size uint64
+	if width == 8 {
+		size = binary.LittleEndian.Uint64(lenBuf[:8])
+	} else {
+		size = uint64(binary.LittleEndian.Uint32(lenBuf[:4]))
+	}
+	if size > maxResponse {
+		return "", fmt.Errorf("agent response too large: %d bytes", size)
+	}
 	body := make([]byte, size)
 	if _, err := io.ReadFull(r, body); err != nil {
 		return "", fmt.Errorf("read agent body: %w", err)
 	}
-	return string(body), nil
+	if flags&flagCompressed == 0 {
+		return string(body), nil
+	}
+	zr, err := zlib.NewReader(bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("decompress agent body: %w", err)
+	}
+	defer zr.Close()
+	plain, err := io.ReadAll(io.LimitReader(zr, maxResponse))
+	if err != nil {
+		return "", fmt.Errorf("decompress agent body: %w", err)
+	}
+	return string(plain), nil
 }

@@ -298,7 +298,7 @@ host and watch the four items in *Latest data*. They poll **daily**, so use
 
 The worker (`vulners-fix-worker.sh`) reads the queue
 `/var/lib/zabbix/vulners-fix.queue`, upgrades each package
-(`apt-get --only-upgrade` / `yum update` / `apk upgrade`), and appends to
+(`apt-get --only-upgrade` / `dnf upgrade` / `yum update` / `apk upgrade` / `zypper update`), and appends to
 `/var/log/vulners-fix.log`. It runs as root, so no sudoers rules are needed.
 
 Check on the host:
