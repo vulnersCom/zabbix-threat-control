@@ -16,6 +16,9 @@ func fixCommand(osName, packageName string) string {
 		return fmt.Sprintf("sudo apt-get --assume-yes install --only-upgrade %s", pkg)
 	case "rhel", "centos", "oraclelinux", "fedora", "rocky", "almalinux", "amzn":
 		return fmt.Sprintf("sudo yum -y update %s", pkg)
+	case "redos":
+		// RED OS 7.3/8 ship dnf; minimal images have no yum at all
+		return fmt.Sprintf("sudo dnf -y upgrade %s", pkg)
 	case "alpine":
 		return fmt.Sprintf("sudo apk upgrade %s", pkg)
 	case "suse", "opensuse", "sles", "opensuse-leap":

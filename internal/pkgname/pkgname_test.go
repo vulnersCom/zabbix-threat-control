@@ -13,6 +13,9 @@ func TestName(t *testing.T) {
 		"kernel-lt-6.1.190-1.el7.3.x86_64":    "kernel-lt",                    // dotted release
 		"bcel-6.8.1-1.el7.noarch":             "bcel",                         // noarch
 		"glibc-2.17-326.el7_9.i686":           "glibc",                        // i686
+		"bash-5.2.21-1.fc40.loongarch64":      "bash",                         // less common arch
+		"bash-5.2.21-1.fc40.armv7l":           "bash",                         // less common arch
+		"bash-5.2.21-1.fc40.weirdarch":        "bash-5.2.21-1.fc40.weirdarch", // unknown arch: untouched
 		"gpg-pubkey-f8ac18ee-591e99a0":        "gpg-pubkey-f8ac18ee-591e99a0", // no arch: untouched
 		"openssl":                             "openssl",
 		"":                                    "",

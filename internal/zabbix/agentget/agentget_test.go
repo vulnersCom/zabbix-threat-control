@@ -106,3 +106,17 @@ func TestReadResponseCompressed(t *testing.T) {
 		t.Errorf("got %q, want queued", got)
 	}
 }
+
+func TestReadResponseCompressedTooLarge(t *testing.T) {
+	var z bytes.Buffer
+	w := zlib.NewWriter(&z)
+	_, _ = w.Write(make([]byte, maxResponse+1)) // zeros compress to a few KB
+	_ = w.Close()
+	raw := []byte("ZBXD\x03")
+	raw = binary.LittleEndian.AppendUint32(raw, uint32(z.Len()))
+	raw = binary.LittleEndian.AppendUint32(raw, maxResponse+1)
+	raw = append(raw, z.Bytes()...)
+	if _, err := readResponse(bytes.NewReader(raw)); err == nil {
+		t.Error("expected an error for an over-limit uncompressed reply, got none")
+	}
+}

@@ -129,9 +129,12 @@ func readResponse(r io.Reader) (string, error) {
 		return "", fmt.Errorf("decompress agent body: %w", err)
 	}
 	defer zr.Close()
-	plain, err := io.ReadAll(io.LimitReader(zr, maxResponse))
+	plain, err := io.ReadAll(io.LimitReader(zr, maxResponse+1))
 	if err != nil {
 		return "", fmt.Errorf("decompress agent body: %w", err)
+	}
+	if len(plain) > maxResponse {
+		return "", fmt.Errorf("agent response too large: over %d bytes uncompressed", maxResponse)
 	}
 	return string(plain), nil
 }

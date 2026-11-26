@@ -26,6 +26,7 @@ func TestFixCommand(t *testing.T) {
 		"oraclelinux": "sudo yum -y update bash",
 		"alpine":      "sudo apk upgrade bash",
 		"sles":        "sudo zypper update -y bash",
+		"redos":       "sudo dnf -y upgrade bash",
 		"weirdos":     "sudo yum -y update bash", // default branch
 	}
 	for os, want := range cases {
@@ -36,7 +37,10 @@ func TestFixCommand(t *testing.T) {
 	// rpm NEVRA (with or without epoch) must become the bare name, otherwise
 	// yum/dnf is asked to "upgrade" to the installed version - a no-op.
 	for _, raw := range []string{"bash-4.4-1.el8.x86_64", "bash-1:4.4-1.el8.x86_64"} {
-		if got, want := fixCommand("redos", raw), "sudo yum -y update bash"; got != want {
+		if got, want := fixCommand("centos", raw), "sudo yum -y update bash"; got != want {
+			t.Errorf("fixCommand(centos, %q) = %q, want %q", raw, got, want)
+		}
+		if got, want := fixCommand("redos", raw), "sudo dnf -y upgrade bash"; got != want {
 			t.Errorf("fixCommand(redos, %q) = %q, want %q", raw, got, want)
 		}
 	}
