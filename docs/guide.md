@@ -112,7 +112,8 @@ UserParameter=vulners.packages,if command -v dpkg-query >/dev/null 2>&1; then \
   dpkg-query -W -f='${Status} ${Package} ${Version} ${Architecture}\n' \
   | awk '($1=="install"||$1=="hold")&&($2=="ok"){print $4" "$5" "$6}'; \
   elif command -v rpm >/dev/null 2>&1; then \
-  rpm -qa --qf '%{NAME}-%|EPOCH?{%{EPOCH}:}:{}|%{VERSION}-%{RELEASE}%|ARCH?{.%{ARCH}}:{}|\n'; \
+  rpm -qa --qf '%{NAME}-%|EPOCH?{%{EPOCH}:}:{}|%{VERSION}-%{RELEASE}%|ARCH?{.%{ARCH}}:{}|\n' | grep -v '^kernel-'; \
+  rpm -qa --qf '%{NAME}-%|EPOCH?{%{EPOCH}:}:{}|%{VERSION}-%{RELEASE}%|ARCH?{.%{ARCH}}:{}|\n' | grep "^kernel.*$(uname -r)"; \
   elif command -v apk >/dev/null 2>&1; then apk info -v; fi
 ```
 
@@ -121,6 +122,8 @@ Key points:
   no root needed.
 - rpm needs the explicit `--qf`: plain `rpm -qa` omits the epoch, and packages
   with epoch > 0 are then reported as vulnerable even when up to date.
+- Old kernels are dropped from the rpm list and only the running one is kept:
+  installed-but-not-booted kernels would otherwise be reported as vulnerable.
 - The server can invoke **only** these predefined keys. It cannot run an arbitrary
   command — that is the security boundary (unlike `system.run[*]`).
 - Example `vulners.packages` value (one line per package):
