@@ -103,10 +103,10 @@ func TestTargetForHostDedupsAndUsesManagerName(t *testing.T) {
 
 func TestManagerName(t *testing.T) {
 	cases := map[string]string{
-		"openssl 3.0.2-0ubuntu1 amd64": "openssl",                 // deb (space-separated)
-		"busybox-1.37.0-r31":           "busybox",                 // apk (hyphen NVR)
-		"py3-foo-1.2-r0":               "py3-foo",                 // apk with hyphenated name
-		"bash-5.1.8-6.el8.x86_64":      "bash-5.1.8-6.el8.x86_64", // rpm NVRA left intact (no -rN)
+		"openssl 3.0.2-0ubuntu1 amd64": "openssl", // deb (space-separated)
+		"busybox-1.37.0-r31":           "busybox", // apk (hyphen NVR)
+		"py3-foo-1.2-r0":               "py3-foo", // apk with hyphenated name
+		"bash-5.1.8-6.el8.x86_64":      "bash",    // rpm NEVRA: name only
 		"openssl":                      "openssl",
 	}
 	for in, want := range cases {

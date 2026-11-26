@@ -32,6 +32,9 @@ upgrade() {
 	pkg=$1
 	if command -v apt-get >/dev/null 2>&1; then
 		apt-get --assume-yes install --only-upgrade "$pkg"
+	elif command -v dnf >/dev/null 2>&1; then
+		# dnf-only systems (RED OS 7.3/8, minimal RHEL 8+/Fedora) have no yum
+		dnf -y upgrade "$pkg"
 	elif command -v yum >/dev/null 2>&1; then
 		yum -y update "$pkg"
 	elif command -v apk >/dev/null 2>&1; then
@@ -49,7 +52,8 @@ sort -u "$WORK" | while IFS= read -r pkg; do
 	[ -n "$pkg" ] || continue
 	echo "$(date '+%F %T') START $pkg" >>"$LOG"
 	upgrade "$pkg" >>"$LOG" 2>&1
-	echo "$(date '+%F %T') END rc=$? $pkg" >>"$LOG"
+	rc=$? # before $(date): command substitution would reset $?
+	echo "$(date '+%F %T') END rc=$rc $pkg" >>"$LOG"
 done
 
 rm -f "$WORK"

@@ -1,6 +1,8 @@
 package agentget
 
 import (
+	"bytes"
+	"compress/zlib"
 	"context"
 	"encoding/binary"
 	"io"
@@ -69,5 +71,52 @@ func TestGetNotSupported(t *testing.T) {
 	_, err := New(2*time.Second).Get(context.Background(), addr, "bogus")
 	if err == nil {
 		t.Fatal("expected error for ZBX_NOTSUPPORTED")
+	}
+}
+
+// readFrom feeds readResponse a raw agent reply.
+func readFrom(t *testing.T, raw []byte) string {
+	t.Helper()
+	got, err := readResponse(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatalf("readResponse: %v", err)
+	}
+	return got
+}
+
+// zabbix-agent2 6.x puts the uncompressed size into the reserved field even for
+// an uncompressed reply: "ZBXD\x01" <len=6> <reserved=6> "queued".
+func TestReadResponseReservedFilled(t *testing.T) {
+	raw := []byte("ZBXD\x01\x06\x00\x00\x00\x06\x00\x00\x00queued")
+	if got := readFrom(t, raw); got != "queued" {
+		t.Errorf("got %q, want queued", got)
+	}
+}
+
+func TestReadResponseCompressed(t *testing.T) {
+	var z bytes.Buffer
+	w := zlib.NewWriter(&z)
+	_, _ = w.Write([]byte("queued"))
+	_ = w.Close()
+	raw := []byte("ZBXD\x03")
+	raw = binary.LittleEndian.AppendUint32(raw, uint32(z.Len()))
+	raw = binary.LittleEndian.AppendUint32(raw, 6)
+	raw = append(raw, z.Bytes()...)
+	if got := readFrom(t, raw); got != "queued" {
+		t.Errorf("got %q, want queued", got)
+	}
+}
+
+func TestReadResponseCompressedTooLarge(t *testing.T) {
+	var z bytes.Buffer
+	w := zlib.NewWriter(&z)
+	_, _ = w.Write(make([]byte, maxResponse+1)) // zeros compress to a few KB
+	_ = w.Close()
+	raw := []byte("ZBXD\x03")
+	raw = binary.LittleEndian.AppendUint32(raw, uint32(z.Len()))
+	raw = binary.LittleEndian.AppendUint32(raw, maxResponse+1)
+	raw = append(raw, z.Bytes()...)
+	if _, err := readResponse(bytes.NewReader(raw)); err == nil {
+		t.Error("expected an error for an over-limit uncompressed reply, got none")
 	}
 }
