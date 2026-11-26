@@ -240,3 +240,21 @@ allowed hosts: "127.0.0.1,::1"
 On 6.0/7.x the data arrives but the CVSS statistics stay integer (`9` instead of
 `9.8`; `NOT SUPPORTED` on 6.0) and severities stay flat. Either way, running
 `provision --all` with the new binary fixes it — no manual object surgery.
+
+### Agent config change: rpm epoch in `vulners.packages`
+
+`provision --all` does not touch the scanned hosts. When a release changes
+`deploy/agent/linux/vulners.conf`, copy the new file to every host and restart
+`zabbix-agent2` — until then the host keeps reporting in the old format.
+
+The rpm branch of `vulners.packages` now includes the epoch
+(`openssl-libs-1:3.0.7-27.el9.x86_64` instead of `openssl-libs-3.0.7-27.el9.x86_64`).
+Plain `rpm -qa` dropped it, so Vulners compared such packages as epoch 0 and
+flagged up-to-date `openssl`, `vim`, `tar`, `shadow-utils`, … as vulnerable.
+
+Side effect, once per host after the new config is deployed: the package string
+is part of the item key (`vulners.packages[<package>,<hostid>]`), so for every
+package that carries an epoch tag (even an explicit `0:`) the old item disappears and a new one is created. Its
+open problem goes away and, if the package is still vulnerable, a new problem
+opens **unacknowledged** — re-acknowledge it if it was pending remediation.
+Packages without an epoch tag, and deb/apk hosts, are not affected.
